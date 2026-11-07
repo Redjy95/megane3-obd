@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <meta name="description" content="Diagnóstico OBD (ELM327 Bluetooth LE) para Renault Mégane III Grand Tour 1.5 dCi 110cv" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OBD Mégane" />
+  <title>OBD Mégane 3</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #080c18;
+      --bg-secondary: #0d1226;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2436;
+      --border: #1e2d4a;
+      --border-bright: #2a3f63;
+      --accent-blue: #2563eb;
+      --accent-blue-bright: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-orange: #f97316;
+      --accent-red: #ef4444;
+      --accent-green: #22c55e;
+      --accent-yellow: #eab308;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #8190a6;
+      --font-display: 'Rajdhani', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --glow-blue: 0 0 20px rgba(37,99,235,0.3);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+    /* ---- LAYOUT ---- */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+    .screen { display: none; flex-direction: column; padding: 16px calc(16px + env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
+    .screen.active { display: flex; }
+    /* ---- TOPBAR ---- */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,12,24,0.95);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left));
+    }
+    .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .topbar-brand {
+      font-family: var(--font-display);
+      font-size: 1.35rem; font-weight: 700; letter-spacing: 0.05em;
+      background: linear-gradient(135deg, var(--accent-blue-bright), var(--accent-cyan));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .topbar-sub { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.02em; }
+    .conn {
+      display: flex; align-items: center; gap: 10px; margin-top: 10px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 8px 8px 8px 12px;
+    }
+    .conn-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); }
+    .conn-dot.ok { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .conn-dot.wait { background: var(--accent-yellow); animation: pulse 1s infinite; }
+    .conn-dot.error { background: var(--accent-red); }
+    @keyframes pulse { 50% { opacity: 0.3; } }
+    #conn-text { flex: 1; min-width: 0; font-size: 0.8rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; }
+    /* ---- BOTTOM NAV ---- */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(8,12,24,0.97);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      height: calc(64px + env(safe-area-inset-bottom));
+      padding: 0 calc(10px + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(10px + env(safe-area-inset-left));
+    }
+    .nav-item {
+      flex: 1; min-width: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+      cursor: pointer; position: relative; color: var(--text-muted); font-size: 0.68rem;
+      font-weight: 500; white-space: nowrap; background: none; border: none;
+    }
+    .nav-item svg { width: 20px; height: 20px; }
+    .nav-item.active { color: var(--accent-blue-bright); }
+    .nav-item.active svg { filter: drop-shadow(0 0 6px rgba(59,130,246,0.6)); }
+    .nav-item.active::before {
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+      height: 2px; background: linear-gradient(90deg, transparent, var(--accent-blue-bright), transparent);
+    }
+    /* ---- CARDS ---- */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+    }
+    .card-title { font-family: var(--font-display); font-size: 0.8rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+    /* ---- BOTÕES ---- */
+    .btn {
+      padding: 10px 16px; border-radius: var(--radius-sm);
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      border: 1px solid transparent; font-family: var(--font-display); letter-spacing: 0.05em;
+      transition: all 0.2s;
+    }
+    .btn:disabled { opacity: 0.45; cursor: default; }
+    .btn-primary { background: var(--accent-blue); color: white; }
+    .btn-danger { background: var(--accent-red); color: white; }
+    .btn-outline { background: transparent; color: var(--text-secondary); border-color: var(--border-bright); }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; }
+    .btn-block { width: 100%; }
+    #conn-btn { padding: 8px 14px; font-size: 0.85rem; }
+    /* ---- AVISOS ---- */
+    .warning-box {
+      background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
+      font-size: 0.82rem; color: var(--accent-yellow); line-height: 1.5;
+    }
+    .info-box {
+      background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
+      font-size: 0.82rem; color: var(--accent-cyan); line-height: 1.5;
+    }
+    /* ---- AVARIAS ---- */
+    .mil-box { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: var(--radius-sm); font-size: 0.9rem; line-height: 1.4; }
+    .mil-box.red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+    .mil-box.green { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: #86efac; }
+    .mil-icon { font-size: 1.4rem; width: 28px; text-align: center; }
+    .dtc-item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .dtc-item:last-child { border-bottom: none; }
+    .dtc-code {
+      font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.06em;
+      color: var(--accent-red); background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 6px; padding: 2px 8px; flex-shrink: 0;
+    }
+    .dtc-code.sm { font-size: 0.9rem; }
+    #dtc-pending .dtc-code { color: var(--accent-yellow); background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.25); }
+    .dtc-text { font-size: 0.84rem; line-height: 1.35; }
+    .ok-text { color: var(--accent-green); font-size: 0.88rem; }
+    .warn-text { color: var(--accent-yellow); }
+    .hist-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .hist-row:last-child { border-bottom: none; }
+    .hist-when { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+    .hist-what { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.82rem; }
+    .hist-tag { font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; background: rgba(37,99,235,0.1); color: var(--accent-blue-bright); border: 1px solid rgba(37,99,235,0.2); }
+    /* ---- MOTOR ---- */
+    .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .gauge {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px; text-align: center; min-width: 0;
+    }
+    .gauge-lbl { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .gauge-val { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1.2; margin-top: 4px; }
+    .gauge-unit { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); }
+    .gauge-note { font-size: 0.72rem; color: var(--text-secondary); min-height: 1em; }
+    .gauge.off .gauge-val { color: var(--text-muted); }
+    .gauge.green .gauge-val { color: var(--accent-green); }
+    .gauge.yellow .gauge-val { color: var(--accent-yellow); }
+    .gauge.red { border-color: rgba(239,68,68,0.5); }
+    .gauge.red .gauge-val, .gauge.red .gauge-note { color: var(--accent-red); }
+    .gauge.blue .gauge-val { color: var(--accent-cyan); }
+    /* ---- INFO ---- */
+    .info-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .info-row:last-child { border-bottom: none; }
+    .info-val { text-align: right; word-break: break-word; }
+    .mono { font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.04em; }
+    /* ---- REGISTO ---- */
+    #log {
+      white-space: pre-wrap; word-break: break-all; font-size: 0.72rem; color: var(--text-secondary);
+      background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 10px; height: 46vh; overflow: auto; margin-bottom: 10px;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .manual { display: flex; gap: 8px; margin-top: 10px; }
+    .manual input {
+      flex: 1; min-width: 0; background: var(--bg-primary); border: 1px solid var(--border-bright);
+      border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text-primary);
+      font-family: ui-monospace, Menlo, monospace; font-size: 16px; outline: none; text-transform: uppercase;
+    }
+    .manual input:focus { border-color: var(--accent-blue); box-shadow: var(--glow-blue); }
+    /* ---- TOAST ---- */
+    .toast {
+      position: fixed; top: calc(120px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+      background: var(--bg-card); border: 1px solid var(--border-bright);
+      border-radius: var(--radius-sm); padding: 12px 20px; max-width: calc(100% - 32px);
+      font-size: 0.85rem; z-index: 300; text-align: center;
+      box-shadow: var(--shadow); display: none;
+    }
+    .toast.show { display: block; animation: fadeInDown 0.25s ease; }
+    @keyframes fadeInDown { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    /* ---- MISC ---- */
+    .text-muted { color: var(--text-muted); }
+    .text-sm { font-size: 0.8rem; }
+    .mt-8 { margin-top: 8px; }
+    .section-note { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- TOPBAR + LIGAÇÃO -->
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-brand">OBD MÉGANE 3</div>
+        <div class="topbar-sub">Grand Tour · 1.5 dCi · 110cv · KZ1G</div>
+      </div>
+    </div>
+    <div class="conn">
+      <span id="conn-dot" class="conn-dot"></span>
+      <span id="conn-text">Desligado</span>
+      <button id="conn-btn" class="btn btn-primary" onclick="connect()">Ligar</button>
+    </div>
+  </div>
+
+  <!-- ECRÃ: AVARIAS -->
+  <div id="screen-avarias" class="screen active">
+    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>.</div>
+    <div id="unsupported" class="info-box" style="display:none">
+      Este browser não permite Bluetooth.<br>
+      <strong>iPhone:</strong> abra este site na app gratuita <strong>Bluefy</strong> (App Store).<br>
+      <strong>Android:</strong> abra no <strong>Chrome</strong>.<br>
+      O adaptador tem de ser Bluetooth LE (ex.: “OBDBLE”).
+    </div>
+
+    <div class="card">
+      <div class="card-title">Luz do motor</div>
+      <div id="mil"><span class="text-muted">Ainda não lido</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Avarias confirmadas</div>
+      <div id="dtc-stored" style="margin-bottom:12px"><span class="text-muted text-sm">Ainda não lido</span></div>
+      <div class="card-title" style="margin-top:4px">Avarias pendentes</div>
+      <div id="dtc-pending" style="margin-bottom:14px"><span class="text-muted text-sm">Ainda não lido</span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" data-needs-obd onclick="readDtcs()">Ler avarias</button>
+        <button class="btn btn-outline" data-needs-obd onclick="clearDtcs()">Apagar avarias</button>
+      </div>
+      <div class="text-muted text-sm mt-8">Pendentes = detetadas uma vez, ainda por confirmar. Lê só a centralina do motor (OBD standard); airbag, ABS e outros módulos precisam de ferramenta Renault.</div>
+    </div>
+
+    <div class="card" id="freeze-card" style="display:none">
+      <div class="card-title">Dados no momento da avaria</div>
+      <div id="freeze"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between">Histórico de leituras <span style="cursor:pointer;color:var(--accent-blue-bright);text-transform:none;letter-spacing:0" onclick="clearHistory()">Limpar</span></div>
+      <div id="history"></div>
+    </div>
+  </div>
+
+  <!-- ECRÃ: MOTOR -->
+  <div id="screen-motor" class="screen">
+    <div class="gauges">
+      <div class="gauge off" id="g-battery"><div class="gauge-lbl">Bateria</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-coolant"><div class="gauge-lbl">Temp. motor</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-rpm"><div class="gauge-lbl">Rotações</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-speed"><div class="gauge-lbl">Velocidade</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-boost"><div class="gauge-lbl">Pressão turbo</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-load"><div class="gauge-lbl">Carga motor</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-iat"><div class="gauge-lbl">Temp. ar admissão</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-maf"><div class="gauge-lbl">Caudal de ar</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-rail"><div class="gauge-lbl">Pressão do rail</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+      <div class="gauge off" id="g-ecu"><div class="gauge-lbl">Tensão centralina</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" data-needs-obd onclick="readLiveOnce()">Ler uma vez</button>
+      <button class="btn btn-primary" id="live-btn" data-needs-obd onclick="toggleLive()">▶ Atualizar continuamente</button>
+    </div>
+    <div id="live-time" class="text-muted text-sm mt-8"></div>
+    <div class="section-note mt-8">Bateria com motor desligado: 12,4 V ou mais é bom. Com o motor a trabalhar deve estar entre 13,5 e 14,8 V. Os valores com “—” não são enviados por esta centralina.</div>
+  </div>
+
+  <!-- ECRÃ: CARRO -->
+  <div id="screen-carro" class="screen">
+    <div class="card">
+      <div class="card-title">Carro</div>
+      <div id="info-car"><span class="text-muted text-sm">VIN, conta-km e distâncias. Muitos carros de 2010 não enviam o conta-km pelo OBD, mas vale a pena tentar.</span></div>
+      <button class="btn btn-primary btn-block mt-8" data-needs-obd onclick="readCarInfo()">Ler dados do carro</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Adaptador</div>
+      <div id="info-adapter"><span class="text-muted text-sm">Ligue ao adaptador para ver os detalhes.</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">O meu carro</div>
+      <div class="info-row"><span class="text-muted">Modelo</span><span class="info-val">Mégane III Grand Tour</span></div>
+      <div class="info-row"><span class="text-muted">Motor</span><span class="info-val">1.5 dCi 110cv (81 kW)</span></div>
+      <div class="info-row"><span class="text-muted">Código do tipo</span><span class="info-val">KZ1G</span></div>
+      <div class="info-row"><span class="text-muted">Ano</span><span class="info-val">2010</span></div>
+      <div class="info-row"><span class="text-muted">Tomada OBD</span><span class="info-val">Debaixo do tablier, lado do condutor</span></div>
+    </div>
+  </div>
+
+  <!-- ECRÃ: REGISTO -->
+  <div id="screen-registo" class="screen">
+    <div class="card">
+      <div class="card-title">Relatório</div>
+      <div class="text-muted text-sm" style="margin-bottom:12px">Resumo das últimas leituras (avarias, bateria, VIN) para enviar ao mecânico.</div>
+      <button class="btn btn-primary btn-block" onclick="shareReport()">Partilhar relatório</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Registo técnico (respostas do adaptador)</div>
+      <pre id="log"></pre>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="copyLog()">Copiar</button>
+        <button class="btn btn-outline" onclick="clearLog()">Limpar</button>
+      </div>
+      <form class="manual" onsubmit="sendManual(event)">
+        <input id="manual-cmd" placeholder="Comando (ex.: ATRV, 010C)" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+        <button class="btn btn-outline" data-needs-obd type="submit">Enviar</button>
+      </form>
+      <div class="text-muted text-sm mt-8">Só para utilizadores avançados.</div>
+    </div>
+  </div>
+
+  <!-- NAVEGAÇÃO -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-avarias" onclick="navigateTo('avarias')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      Avarias
+    </button>
+    <button class="nav-item" id="nav-motor" onclick="navigateTo('motor')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.3 19a10 10 0 1117.4 0z"/></svg>
+      Motor
+    </button>
+    <button class="nav-item" id="nav-carro" onclick="navigateTo('carro')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0M3 17v-5l2-5h11l3 5h2v5"/></svg>
+      Carro
+    </button>
+    <button class="nav-item" id="nav-registo" onclick="navigateTo('registo')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>
+      Registo
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="dtc.js"></script>
+<script src="obd.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
