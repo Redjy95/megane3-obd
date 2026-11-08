@@ -183,7 +183,7 @@
     #log {
       white-space: pre-wrap; word-break: break-all; font-size: 0.72rem; color: var(--text-secondary);
       background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 10px; height: 46vh; overflow: auto; margin-bottom: 10px;
+      padding: 10px; height: 40vh; overflow: auto; margin-bottom: 10px;
       font-family: ui-monospace, Menlo, monospace;
     }
     .manual { display: flex; gap: 8px; margin-top: 10px; }
@@ -193,6 +193,88 @@
       font-family: ui-monospace, Menlo, monospace; font-size: 16px; outline: none; text-transform: uppercase;
     }
     .manual input:focus { border-color: var(--accent-blue); box-shadow: var(--glow-blue); }
+    /* ---- PAINEL ---- */
+    .chips { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { padding: 7px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); white-space: nowrap; cursor: pointer; }
+    .chip.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+    .dash-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .live-state { flex: 1; font-size: 0.75rem; color: var(--text-muted); }
+    .live-state.on { color: var(--accent-green); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .edit-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .w { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; min-width: 0; }
+    .w-chart { grid-column: 1 / -1; text-align: left; }
+    .w.alert { border-color: rgba(239,68,68,0.6); box-shadow: 0 0 12px rgba(239,68,68,0.25); }
+    .w.off { opacity: 0.45; }
+    .w-lbl { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 14px; }
+    .w-chart .w-lbl { padding: 0 24px 0 0; }
+    .w-val { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1.25; }
+    .w.alert .w-val { color: var(--accent-red); }
+    .w-unit { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-left: 3px; }
+    .w-note { font-size: 0.7rem; color: var(--text-muted); }
+    .w-edit { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-bright); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem; cursor: pointer; z-index: 2; }
+    .w-add { border-style: dashed; color: var(--accent-blue-bright); font-weight: 600; cursor: pointer; min-height: 70px; font-family: var(--font-display); font-size: 0.95rem; }
+    .w-chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.75rem; }
+    .w-chart-head .w-val { font-size: 1.4rem; }
+    .gauge-svg { width: 100%; max-width: 170px; display: block; margin: 2px auto 0; }
+    .g-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 9; stroke-linecap: round; }
+    .g-fill { fill: none; stroke: var(--accent-cyan); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray 0.3s; filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
+    .g-fill.alert { stroke: var(--accent-red); filter: drop-shadow(0 0 4px rgba(239,68,68,0.6)); }
+    .g-val { fill: var(--text-primary); font-family: var(--font-display); font-weight: 700; font-size: 22px; text-anchor: middle; }
+    .g-unit { fill: var(--text-secondary); font-size: 10px; text-anchor: middle; }
+    .g-scale { fill: var(--text-muted); font-size: 8px; }
+    .spark { width: 100%; height: 80px; display: block; margin-top: 6px; }
+    .spark-line { fill: none; stroke: var(--accent-cyan); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .spark-line.alert { stroke: var(--accent-red); }
+    .spark-mark { stroke: rgba(234,179,8,0.45); stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+    .spark-empty { fill: var(--text-muted); font-size: 12px; text-anchor: middle; }
+    /* ---- SENSORES ---- */
+    .sensor-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .sensor-row:last-child { border-bottom: none; }
+    .sensor-name { flex: 1; min-width: 0; }
+    .sensor-val { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
+    .sensor-add { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-bright); background: transparent; color: var(--accent-blue-bright); cursor: pointer; flex-shrink: 0; }
+    /* ---- SAÚDE ---- */
+    .check-group { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; margin: 14px 0 4px; }
+    .check-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; line-height: 1.4; }
+    .check-row:last-child { border-bottom: none; }
+    .check-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; background: rgba(129,144,166,0.15); color: var(--text-secondary); }
+    .check-row.ok .check-dot { background: rgba(34,197,94,0.15); color: var(--accent-green); }
+    .check-row.warn .check-dot { background: rgba(234,179,8,0.15); color: var(--accent-yellow); }
+    .check-row.bad .check-dot { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+    .check-row.info .check-dot { background: rgba(6,182,212,0.12); color: var(--accent-cyan); }
+    .check-text, .check-name { flex: 1; min-width: 0; }
+    .check-state { font-size: 0.75rem; color: var(--text-secondary); }
+    .check-row.ok .check-state { color: var(--accent-green); }
+    .check-row.warn .check-state { color: var(--accent-yellow); }
+    .test-btn { display: block; width: 100%; text-align: left; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; color: var(--text-primary); cursor: pointer; font-size: 0.9rem; }
+    .test-btn span { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; }
+    .test-btn:disabled { opacity: 0.45; }
+    .test-box { background: var(--bg-primary); border: 1px solid var(--border-bright); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px; }
+    .test-title { font-family: var(--font-display); font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+    .test-msg { font-size: 0.95rem; color: var(--accent-yellow); margin-bottom: 10px; line-height: 1.4; }
+    .test-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+    .test-bar div { height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); }
+    .test-now { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin: 8px 0 4px; }
+    /* ---- JANELAS ---- */
+    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg-secondary); border: 1px solid var(--border-bright); border-radius: var(--radius) var(--radius) 0 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
+    .modal-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
+    .modal-close { width: 30px; height: 30px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; flex-shrink: 0; }
+    .form-label { display: block; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .form-input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text-primary); font-size: 16px; font-family: var(--font-body); outline: none; }
+    .form-input:focus { border-color: var(--accent-blue); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pick-cat { font-family: var(--font-display); font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+    .pick { display: block; width: 100%; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 6px; color: var(--text-primary); font-size: 0.88rem; cursor: pointer; }
+    .pick:disabled { opacity: 0.4; }
+    .mt-12 { margin-top: 12px; }
+    details.card > summary { list-style: none; }
+    details.card > summary::-webkit-details-marker { display: none; }
     /* ---- TOAST ---- */
     .toast {
       position: fixed; top: calc(120px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
@@ -231,7 +313,7 @@
 
   <!-- ECRÃ: AVARIAS -->
   <div id="screen-avarias" class="screen active">
-    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>. A app lê as avarias, os dados do carro e do motor sozinha.</div>
+    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>. A app lê as avarias, os testes da centralina e os dados do carro sozinha.</div>
     <div id="unsupported" class="info-box" style="display:none">
       Este browser não permite Bluetooth.<br>
       <strong>iPhone:</strong> abra este site na app gratuita <strong>Bluefy</strong> (App Store).<br>
@@ -267,26 +349,61 @@
     </div>
   </div>
 
-  <!-- ECRÃ: MOTOR -->
-  <div id="screen-motor" class="screen">
-    <div class="gauges">
-      <div class="gauge off" id="g-battery"><div class="gauge-lbl">Bateria</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-coolant"><div class="gauge-lbl">Temp. motor</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-rpm"><div class="gauge-lbl">Rotações</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-speed"><div class="gauge-lbl">Velocidade</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-boost"><div class="gauge-lbl">Pressão turbo</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-load"><div class="gauge-lbl">Carga motor</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-iat"><div class="gauge-lbl">Temp. ar admissão</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-maf"><div class="gauge-lbl">Caudal de ar</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-rail"><div class="gauge-lbl">Pressão do rail</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
-      <div class="gauge off" id="g-ecu"><div class="gauge-lbl">Tensão centralina</div><div class="gauge-val">—</div><div class="gauge-note"></div></div>
+  <!-- ECRÃ: PAINEL -->
+  <div id="screen-painel" class="screen">
+    <div class="chips" id="dash-tabs"></div>
+    <div class="dash-tools">
+      <span class="live-state"></span>
+      <button class="btn btn-outline btn-sm live-pause" onclick="togglePause()">⏸ Pausar</button>
+      <button class="btn btn-outline btn-sm" id="edit-btn" onclick="toggleEdit()">✎ Editar</button>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-outline" data-needs-obd onclick="readLiveOnce()">Ler uma vez</button>
-      <button class="btn btn-primary" id="live-btn" data-needs-obd onclick="toggleLive()">▶ Atualizar continuamente</button>
+    <div id="dash-edit-bar" class="edit-bar" style="display:none">
+      <button class="btn btn-outline btn-sm" onclick="renameDash()">Mudar nome</button>
+      <button class="btn btn-outline btn-sm" onclick="deleteDash()">Apagar painel</button>
+      <button class="btn btn-outline btn-sm" onclick="resetDashes()">Repor de origem</button>
+      <div class="text-muted text-sm" style="width:100%">Toque em ⚙ num dado para mudar o aspeto, os limites de alerta ou a ordem.</div>
     </div>
-    <div id="live-time" class="text-muted text-sm mt-8"></div>
-    <div class="section-note mt-8">Com o adaptador ligado, os valores atualizam sozinhos enquanto este separador está aberto. Bateria com motor desligado: 12,4 V ou mais é bom. Com o motor a trabalhar deve estar entre 13,5 e 14,8 V. Os valores com “—” não são enviados por esta centralina.</div>
+    <div class="dash-grid" id="dash-grid"></div>
+    <button class="btn btn-outline btn-block mt-12" id="rec-btn" onclick="toggleRecord()">● Gravar</button>
+    <div class="section-note mt-8">A gravação guarda os valores deste painel num ficheiro CSV (abre no Excel ou Numbers). Os dados que o carro não envia aparecem como “não disponível”.</div>
+  </div>
+
+  <!-- ECRÃ: SAÚDE -->
+  <div id="screen-saude" class="screen">
+    <div class="card">
+      <div class="card-title">Verificação rápida</div>
+      <div class="text-muted text-sm" style="margin-bottom:12px">Analisa bateria, alternador, temperaturas, turbo, EGR e FAP. Faça-a com o motor desligado (ignição ligada) e depois com o motor a trabalhar: os resultados são diferentes.</div>
+      <button class="btn btn-primary btn-block" data-needs-obd onclick="quickCheck()">Verificar agora</button>
+      <div id="check-time" class="text-muted text-sm mt-8"></div>
+      <div id="check-result" class="mt-8"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Testes guiados</div>
+      <div id="test-box" class="test-box" style="display:none"></div>
+      <button class="test-btn" data-needs-obd onclick="testCranking()"><strong>🔋 Bateria no arranque</strong><span>Motor desligado. Mede a queda de tensão ao ligar o motor.</span></button>
+      <button class="test-btn" data-needs-obd onclick="testAlternator()"><strong>⚡ Alternador com consumos</strong><span>Motor a trabalhar. Liga luzes e ventilação e vê se a tensão se aguenta.</span></button>
+      <button class="test-btn" data-needs-obd onclick="testTurbo()"><strong>🌀 Resposta do turbo e do debitómetro</strong><span>Motor quente, em ponto morto. Acelere até cerca de 2500 rpm.</span></button>
+      <div class="text-muted text-sm mt-8">Os limites são referências gerais para este tipo de motor, não valores de fábrica da Renault.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Testes da centralina</div>
+      <div class="text-muted text-sm" style="margin-bottom:12px">A centralina testa sozinha vários sistemas enquanto conduz. “Concluído” quer dizer que testou e não encontrou problema. “Por concluir” é normal depois de apagar avarias ou desligar a bateria: precisa de alguns dias de condução.</div>
+      <div id="readiness"><span class="text-muted text-sm">Ainda não lido</span></div>
+      <button class="btn btn-outline btn-block mt-12" data-needs-obd onclick="readReadiness()">Ler outra vez</button>
+    </div>
+  </div>
+
+  <!-- ECRÃ: SENSORES -->
+  <div id="screen-sensores" class="screen">
+    <div class="dash-tools">
+      <span class="live-state"></span>
+      <button class="btn btn-outline btn-sm live-pause" onclick="togglePause()">⏸ Pausar</button>
+    </div>
+    <div id="sensors-count" class="text-muted text-sm" style="margin-bottom:12px"></div>
+    <div id="sensors"></div>
+    <div class="section-note">Toque em ＋ para juntar um dado ao painel aberto.</div>
   </div>
 
   <!-- ECRÃ: CARRO -->
@@ -295,6 +412,11 @@
       <div class="card-title">Carro</div>
       <div id="info-car"><span class="text-muted text-sm">Lidos automaticamente ao ligar: VIN, conta-km e distâncias. Muitos carros de 2010 não enviam o conta-km pelo OBD, mas vale a pena tentar.</span></div>
       <button class="btn btn-primary btn-block mt-8" data-needs-obd onclick="readCarInfo()">Ler outra vez</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Relatório</div>
+      <div class="text-muted text-sm" style="margin-bottom:12px">Resumo das últimas leituras (avarias, testes, valores) para enviar ao mecânico.</div>
+      <button class="btn btn-primary btn-block" onclick="shareReport()">Partilhar relatório</button>
     </div>
     <div class="card">
       <div class="card-title">Adaptador</div>
@@ -308,18 +430,9 @@
       <div class="info-row"><span class="text-muted">Ano</span><span class="info-val">2010</span></div>
       <div class="info-row"><span class="text-muted">Tomada OBD</span><span class="info-val">Debaixo do tablier, lado do condutor</span></div>
     </div>
-  </div>
-
-  <!-- ECRÃ: REGISTO -->
-  <div id="screen-registo" class="screen">
-    <div class="card">
-      <div class="card-title">Relatório</div>
-      <div class="text-muted text-sm" style="margin-bottom:12px">Resumo das últimas leituras (avarias, bateria, VIN) para enviar ao mecânico.</div>
-      <button class="btn btn-primary btn-block" onclick="shareReport()">Partilhar relatório</button>
-    </div>
-    <div class="card">
-      <div class="card-title">Registo técnico (respostas do adaptador)</div>
-      <pre id="log"></pre>
+    <details class="card">
+      <summary class="card-title" style="margin:0;cursor:pointer">Registo técnico (respostas do adaptador)</summary>
+      <pre id="log" class="mt-12"></pre>
       <div class="btn-row">
         <button class="btn btn-outline" onclick="copyLog()">Copiar</button>
         <button class="btn btn-outline" onclick="clearLog()">Limpar</button>
@@ -329,7 +442,7 @@
         <button class="btn btn-outline" data-needs-obd type="submit">Enviar</button>
       </form>
       <div class="text-muted text-sm mt-8">Só para utilizadores avançados.</div>
-    </div>
+    </details>
   </div>
 
   <!-- NAVEGAÇÃO -->
@@ -338,25 +451,39 @@
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
       Avarias
     </button>
-    <button class="nav-item" id="nav-motor" onclick="navigateTo('motor')">
+    <button class="nav-item" id="nav-painel" onclick="navigateTo('painel')">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.3 19a10 10 0 1117.4 0z"/></svg>
-      Motor
+      Painel
+    </button>
+    <button class="nav-item" id="nav-saude" onclick="navigateTo('saude')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+      Saúde
+    </button>
+    <button class="nav-item" id="nav-sensores" onclick="navigateTo('sensores')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Sensores
     </button>
     <button class="nav-item" id="nav-carro" onclick="navigateTo('carro')">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0M3 17v-5l2-5h11l3 5h2v5"/></svg>
       Carro
-    </button>
-    <button class="nav-item" id="nav-registo" onclick="navigateTo('registo')">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>
-      Registo
     </button>
   </nav>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="dtc.js?v=5"></script>
-<script src="obd.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-title"></div><button class="modal-close" onclick="closeModal()" aria-label="Fechar">✕</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="dtc.js?v=6"></script>
+<script src="obd.js?v=6"></script>
+<script src="pids.js?v=6"></script>
+<script src="dash.js?v=6"></script>
+<script src="health.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
