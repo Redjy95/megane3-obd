@@ -11,6 +11,8 @@ App web (PWA) de diagnóstico OBD para o **Renault Mégane III Grand Tour 1.5 dC
 3. Ligar a ignição (o motor pode estar desligado).
 4. Tocar em **Ligar** e escolher o "OBDBLE".
 
+Ao ligar, a app lê sozinha as avarias, os dados do carro e do motor. O separador **Motor** atualiza continuamente enquanto estiver aberto.
+
 ## O que faz
 
 - **Avarias:** luz do motor, avarias confirmadas (modo 03) e pendentes (modo 07) com descrição em português, dados no momento da avaria (modo 02), apagar avarias (modo 04) e histórico de leituras.
