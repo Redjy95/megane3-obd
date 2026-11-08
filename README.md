@@ -34,6 +34,7 @@ Lê só a centralina do motor (OBD standard). Airbag, ABS e outros módulos prec
 - `dash.js` — painéis, sensores e leitura contínua
 - `health.js` — verificação rápida e testes guiados
 - `drive.js` — modo condução e análise da viagem
+- `wake.js` + `keepawake.mp4` — mantém o ecrã ligado no modo condução (Wake Lock ou vídeo invisível)
 - `app.js` — interface
 - `version.json` — número da versão publicada
 - `sw.js` — funciona sem rede (a cada versão nova, subir o número em `version.json`, `APP_VERSION` no `app.js`, `?v=` no `index.html` e `CACHE` no `sw.js`; a app compara com o `version.json` e atualiza-se sozinha)

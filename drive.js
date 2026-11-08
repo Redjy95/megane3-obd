@@ -22,12 +22,14 @@ function openDriveSetup() {
       <div class="mt-8">${shown.map(k => `<span class="hist-tag" style="margin:0 6px 6px 0;display:inline-block">${escapeHtml(PID_BY_KEY[k].short || PID_BY_KEY[k].name)}</span>`).join('') || '<span class="text-muted">(painel vazio)</span>'}</div>
       <div class="text-muted mt-8">Para escolher outros, mude a ordem nesse painel (✎ Editar). Um dado fora dos limites de alerta fica vermelho e dá um sinal sonoro.</div>
       <div class="text-muted mt-8">A viagem fica gravada. No fim, já parado, toque em <strong>Terminar</strong> para ver a análise (turbo em carga, temperaturas, bateria).</div>
-      <div class="text-muted mt-8">📱 Deixe o telemóvel a carregar. Se o ecrã se apagar, a gravação pára: em Definições → Ecrã e brilho → Bloqueio automático, escolha “Nunca” durante a viagem.</div>
+      <div class="text-muted mt-8">📱 A app mantém o ecrã ligado enquanto estiver em modo condução. Deixe o telemóvel a carregar.</div>
     </div>
     <button class="btn btn-primary btn-block mt-12" onclick="startDrive()">Começar</button>`);
 }
 
 async function startDrive() {
+  // tem de ser a primeira coisa, ainda dentro do toque em "Começar"
+  const awake = keepAwakeOn();
   closeModal();
   drive.keys = [...new Set(curDash().widgets.map(w => w.key))].filter(k => pidAvailable(k)).slice(0, 4);
   if (!drive.keys.length) drive.keys = ['rpm', 'coolant', 'boost', 'battery'].filter(k => pidAvailable(k));
@@ -47,7 +49,11 @@ async function startDrive() {
   live.paused = false;
   live.rec = { start: Date.now(), rows: [] };
   startLive();
-  setTimeout(() => { if (drive.on && !ui.wakeLock) $('drive-note').textContent = 'O ecrã pode apagar-se sozinho: ponha o Bloqueio automático em “Nunca”.'; }, 3000);
+  awake.then(m => {
+    if (!drive.on) return;
+    obdLog('Ecrã ligado: ' + (m || 'não foi possível'));
+    $('drive-note').textContent = m ? '' : 'Não consegui manter o ecrã ligado: em Definições → Ecrã e brilho → Bloqueio automático, escolha “Nunca” durante a viagem.';
+  });
 }
 
 function updateDriveTile(el, key, v) {
@@ -83,6 +89,7 @@ function exitDrive() {
     return;
   }
   drive.on = false;
+  keepAwakeOff();
   $('drive').classList.remove('open');
   document.body.style.overflow = '';
   const rec = live.rec;

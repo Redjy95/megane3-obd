@@ -5,7 +5,7 @@
 
 const HISTORY_KEY = 'obd-megane3-historico';
 // Versão da app: tem de ser igual ao version.json e ao ?v= dos scripts no index.html
-const APP_VERSION = 9;
+const APP_VERSION = 10;
 const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
