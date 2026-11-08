@@ -15,6 +15,7 @@ const CATS = {
 
 const u16 = b => b[0] * 256 + b[1];
 
+// runTime: o valor é em segundos, mostrado como min:ss
 // pid: PID do modo 01 ('RV' = tensão medida pelo adaptador)
 // n: nº de bytes; f: fórmula; dec: casas decimais; min/max: escala dos mostradores
 // short: nome curto para os mostradores
@@ -63,7 +64,7 @@ const PIDS = [
   { key: 'dpfDp', short: 'FAP: Δ pressão', pid: 0x7A, n: 3, f: b => (b[0] & 1) ? (u16(b.slice(1)) << 16 >> 16) * 0.1 : null, name: 'FAP: pressão diferencial', unit: 'mbar', cat: 'emis', dec: 0, min: 0, max: 300 },
 
   // Contadores
-  { key: 'runTime', short: 'Tempo ligado', pid: 0x1F, n: 2, f: u16, name: 'Tempo desde o arranque', unit: 's', cat: 'info', dec: 0, min: 0, max: 3600 },
+  { key: 'runTime', short: 'Tempo ligado', pid: 0x1F, n: 2, f: u16, name: 'Tempo desde o arranque', unit: 'min', cat: 'info', dec: 0, min: 0, max: 3600 },
   { key: 'distClear', short: 'Km desde limpeza', pid: 0x31, n: 2, f: u16, name: 'Km desde a limpeza de avarias', unit: 'km', cat: 'info', dec: 0, min: 0, max: 65535 },
   { key: 'distMil', short: 'Km luz acesa', pid: 0x21, n: 2, f: u16, name: 'Km com a luz do motor acesa', unit: 'km', cat: 'info', dec: 0, min: 0, max: 65535 },
   { key: 'warmups', short: 'Aquecimentos', pid: 0x30, f: b => b[0], name: 'Aquecimentos desde a limpeza', unit: '', cat: 'info', dec: 0, min: 0, max: 255 },
