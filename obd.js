@@ -30,48 +30,88 @@ function obdSupported() {
   return !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 }
 
+// Texto legível de um erro (o Bluefy às vezes rejeita com um número ou objeto)
+function obdErrText(e) {
+  if (e instanceof Error) return (e.name && e.name !== 'Error' ? e.name + ': ' : '') + (e.message || '');
+  if (e && typeof e === 'object') { try { return JSON.stringify(e); } catch {} }
+  return String(e);
+}
+
+const uuidShort = u => String(u).replace(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/i, '$1');
+const propsText = c => Object.keys({ read: 0, write: 0, writeWithoutResponse: 0, notify: 0, indicate: 0 }).filter(k => c.properties[k]).join(',');
+
 // Liga ao adaptador e inicia o ELM327. onStatus(texto) mostra o progresso.
+// Cada passo fica no registo, e o erro diz em que passo falhou.
 async function obdConnect(onStatus = () => {}) {
-  onStatus('A procurar adaptador…');
-  const device = await navigator.bluetooth.requestDevice({
-    filters: [{ namePrefix: 'OBD' }, { namePrefix: 'Vgate' }, { namePrefix: 'IOS-Vlink' }, { namePrefix: 'V-LINK' }, { namePrefix: 'Veepeak' }, { services: [0xfff0] }, { services: [0xffe0] }],
-    optionalServices: OBD_SERVICES
-  });
-  obd.device = device;
-  device.addEventListener('gattserverdisconnected', obdOnDisconnect);
-  onStatus('A ligar a ' + (device.name || 'adaptador') + '…');
-  const server = await device.gatt.connect();
+  let step = '';
+  const go = (s, status) => { step = s; obdLog('• ' + s); if (status) onStatus(status); };
+  try {
+    go('Escolher adaptador', 'A procurar adaptador…');
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'OBD' }, { namePrefix: 'Vgate' }, { namePrefix: 'IOS-Vlink' }, { namePrefix: 'V-LINK' }, { namePrefix: 'Veepeak' }, { services: [0xfff0] }, { services: [0xffe0] }],
+      optionalServices: OBD_SERVICES
+    });
+    obd.device = device;
+    obdLog('Adaptador: ' + (device.name || '(sem nome)'));
+    device.addEventListener('gattserverdisconnected', obdOnDisconnect);
 
-  // Procura um canal para escrever e outro para receber (notify).
-  // Prefere um serviço que tenha os dois (ex.: FFF0 → FFF1 + FFF2).
-  let best = null, anyWrite = null, anyNotify = null;
-  for (const service of await server.getPrimaryServices()) {
-    let chars;
-    try { chars = await service.getCharacteristics(); } catch { continue; }
-    let w = null, n = null;
-    for (const c of chars) {
-      if (!n && (c.properties.notify || c.properties.indicate)) n = c;
-      if (!w && (c.properties.write || c.properties.writeWithoutResponse)) w = c;
+    go('Ligar por Bluetooth', 'A ligar a ' + (device.name || 'adaptador') + '…');
+    let server;
+    try { server = await device.gatt.connect(); }
+    catch (e) {
+      obdLog('Falhou (' + obdErrText(e) + '). Nova tentativa…');
+      await new Promise(r => setTimeout(r, 1500));
+      server = await device.gatt.connect();
     }
-    if (w && n) { best = { w, n }; break; }
-    anyWrite = anyWrite || w; anyNotify = anyNotify || n;
-  }
-  const writeChar = best ? best.w : anyWrite;
-  const notifyChar = best ? best.n : anyNotify;
-  if (!writeChar || !notifyChar) throw new Error('Adaptador não compatível (sem canal de dados).');
 
-  obd.writeChar = writeChar;
-  obd.notifyChar = notifyChar;
-  await notifyChar.startNotifications();
-  notifyChar.addEventListener('characteristicvaluechanged', obdOnData);
+    go('Ler serviços do adaptador');
+    let services = [];
+    try { services = await server.getPrimaryServices(); }
+    catch (e) { obdLog('Lista de serviços falhou (' + obdErrText(e) + '). A pedir um a um…'); }
+    if (!services.length) {
+      for (const u of OBD_SERVICES) {
+        try { services.push(await server.getPrimaryService(u)); } catch {}
+      }
+    }
 
-  onStatus('A iniciar o ELM327…');
+    // Candidatos: primeiro os serviços com envio + receção juntos (ex.: FFF0 → FFF1 + FFF2)
+    go('Procurar canal de dados');
+    const pairs = [], writes = [], notifies = [];
+    for (const service of services) {
+      let chars;
+      try { chars = await service.getCharacteristics(); }
+      catch (e) { obdLog(`Serviço ${uuidShort(service.uuid)}: ${obdErrText(e)}`); continue; }
+      obdLog(`Serviço ${uuidShort(service.uuid)}: ` + chars.map(c => `${uuidShort(c.uuid)}[${propsText(c)}]`).join(' '));
+      const w = chars.filter(c => c.properties.write || c.properties.writeWithoutResponse);
+      const n = chars.filter(c => c.properties.notify || c.properties.indicate);
+      if (w.length && n.length) pairs.push({ w: w[0], n: n[0] });
+      writes.push(...w); notifies.push(...n);
+    }
+    if (writes.length && notifies.length) pairs.push({ w: writes[0], n: notifies[0] });
+    if (!pairs.length) throw new Error('Adaptador não compatível (sem canal de dados).');
+
+    // Ativa as notificações no primeiro candidato que aceitar
+    go('Ativar receção de dados', 'A iniciar o ELM327…');
+    let chosen = null, lastErr = null;
+    for (const p of pairs) {
+      try {
+        await p.n.startNotifications();
+        chosen = p; break;
+      } catch (e) { lastErr = e; obdLog(`Receção em ${uuidShort(p.n.uuid)} falhou: ${obdErrText(e)}`); }
+    }
+    if (!chosen) throw lastErr || new Error('Sem canal de receção');
+    obdLog(`Canal: envio ${uuidShort(chosen.w.uuid)}, receção ${uuidShort(chosen.n.uuid)}`);
+    obd.writeChar = chosen.w;
+    obd.notifyChar = chosen.n;
+    chosen.n.addEventListener('characteristicvaluechanged', obdOnData);
+
+    go('Iniciar o ELM327');
   obd.elm = (await obdSend('ATZ', 4000)).replace(/[\r\n>]+/g, ' ').trim();
   for (const cmd of ['ATE0', 'ATL0', 'ATS0', 'ATH0', 'ATAT1', 'ATSP0']) await obdSend(cmd, 2000);
 
   // Primeiro pedido ao carro (pode demorar enquanto procura o protocolo).
   // O Mégane III dCi usa CAN 11 bit 500 kbps (protocolo 6): se o automático falhar, força-o.
-  onStatus('A falar com o carro (pode demorar uns segundos)…');
+  go('Falar com o carro', 'A falar com o carro (pode demorar uns segundos)…');
   let first = await obdSend('0100', 12000).catch(() => '');
   if (!obdBytes(first, 1, 0x00)) {
     obdLog('Protocolo automático falhou. A tentar CAN 11 bit 500 kbps (ATSP6)…');
@@ -84,6 +124,11 @@ async function obdConnect(onStatus = () => {}) {
   obd.protocol = (await obdSend('ATDP', 2000).catch(() => '')).replace(/^AUTO,\s*/i, '').trim();
   await obdLoadSupported(first);
   return device.name || 'adaptador';
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') throw e;
+    obdLog(`✗ Falhou em "${step}": ${obdErrText(e)}`);
+    throw new Error(`Falhou em "${step}": ${obdErrText(e)}`);
+  }
 }
 
 function obdDisconnect() {
@@ -127,9 +172,18 @@ function obdSend(cmd, timeout = 5000) {
     try {
       const data = new TextEncoder().encode(cmd + '\r');
       const c = obd.writeChar;
-      // O Bluefy nem sempre tem writeValueWithoutResponse: usa writeValue nesse caso
-      if (c.properties.writeWithoutResponse && typeof c.writeValueWithoutResponse === 'function') await c.writeValueWithoutResponse(data);
-      else await c.writeValue(data);
+      // O Bluefy nem sempre tem writeValueWithoutResponse: usa writeValue nesse caso.
+      // Se um modo de escrita falhar, tenta o outro.
+      const noResp = c.properties.writeWithoutResponse && typeof c.writeValueWithoutResponse === 'function';
+      const withResp = c.properties.write && typeof c.writeValueWithResponse === 'function';
+      try {
+        if (noResp) await c.writeValueWithoutResponse(data);
+        else await c.writeValue(data);
+      } catch (e1) {
+        obdLog('Escrita falhou (' + obdErrText(e1) + '). A tentar outro modo…');
+        if (noResp && withResp) await c.writeValueWithResponse(data);
+        else await c.writeValue(data);
+      }
     } catch (err) { clearTimeout(obd.pending?.timer); obd.pending = null; reject(err); }
   });
   const p = obd.queue.then(run, run);
