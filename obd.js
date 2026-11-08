@@ -6,8 +6,10 @@
 // ============================================================
 
 // Serviços BLE usados pelos adaptadores ELM327 mais comuns
+// UUIDs completos (o Bluefy pode não aceitar números curtos como 0xfff0)
+const BLE = n => '0000' + n.toString(16).padStart(4, '0') + '-0000-1000-8000-00805f9b34fb';
 const OBD_SERVICES = [
-  0xfff0, 0xffe0, 0x18f0,
+  BLE(0xfff0), BLE(0xffe0), BLE(0x18f0),
   'e7810a71-73ae-499d-8c15-faa9aef0c3f2' // Vgate iCar Pro BLE
 ];
 
@@ -40,6 +42,32 @@ function obdErrText(e) {
 const uuidShort = u => String(u).replace(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/i, '$1');
 const propsText = c => Object.keys({ read: 0, write: 0, writeWithoutResponse: 0, notify: 0, indicate: 0 }).filter(k => c.properties[k]).join(',');
 
+// Abre a lista de adaptadores. Se o browser recusar as opções (o Bluefy rejeitava
+// com "2"), tenta formas mais simples, até mostrar todos os aparelhos.
+async function obdRequestDevice() {
+  const names = ['OBD', 'Vgate', 'IOS-Vlink', 'V-LINK', 'Veepeak'];
+  const attempts = [
+    ['nomes e serviços', { filters: [...names.map(namePrefix => ({ namePrefix })), { services: [OBD_SERVICES[0]] }, { services: [OBD_SERVICES[1]] }], optionalServices: OBD_SERVICES }],
+    ['só nomes', { filters: names.map(namePrefix => ({ namePrefix })), optionalServices: OBD_SERVICES }],
+    ['só serviços', { filters: OBD_SERVICES.slice(0, 3).map(u => ({ services: [u] })), optionalServices: OBD_SERVICES }],
+    ['todos os aparelhos', { acceptAllDevices: true, optionalServices: OBD_SERVICES }],
+    ['todos, sem serviços', { acceptAllDevices: true }]
+  ];
+  let lastErr;
+  for (const [label, opts] of attempts) {
+    try {
+      const d = await navigator.bluetooth.requestDevice(opts);
+      if (label !== attempts[0][0]) obdLog('Lista aberta com: ' + label);
+      return d;
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') throw e; // o utilizador fechou a lista
+      lastErr = e;
+      obdLog(`Lista (${label}) recusada: ${obdErrText(e)}`);
+    }
+  }
+  throw lastErr;
+}
+
 // Liga ao adaptador e inicia o ELM327. onStatus(texto) mostra o progresso.
 // Cada passo fica no registo, e o erro diz em que passo falhou.
 async function obdConnect(onStatus = () => {}) {
@@ -47,10 +75,7 @@ async function obdConnect(onStatus = () => {}) {
   const go = (s, status) => { step = s; obdLog('• ' + s); if (status) onStatus(status); };
   try {
     go('Escolher adaptador', 'A procurar adaptador…');
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'OBD' }, { namePrefix: 'Vgate' }, { namePrefix: 'IOS-Vlink' }, { namePrefix: 'V-LINK' }, { namePrefix: 'Veepeak' }, { services: [0xfff0] }, { services: [0xffe0] }],
-      optionalServices: OBD_SERVICES
-    });
+    const device = await obdRequestDevice();
     obd.device = device;
     obdLog('Adaptador: ' + (device.name || '(sem nome)'));
     device.addEventListener('gattserverdisconnected', obdOnDisconnect);
