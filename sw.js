@@ -1,7 +1,7 @@
 // OBD Mégane 3 — Service Worker (funciona sem rede)
-// Mudar a versão sempre que os ficheiros da app mudarem.
-const CACHE = 'obd-megane3-v4';
-const ASSETS = ['./', './index.html', './app.js', './obd.js', './dtc.js', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+// Mudar a versão sempre que os ficheiros da app mudarem (aqui e no ?v= do index.html).
+const CACHE = 'obd-megane3-v5';
+const ASSETS = ['./', './index.html', './app.js?v=5', './obd.js?v=5', './dtc.js?v=5', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))));
