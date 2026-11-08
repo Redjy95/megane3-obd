@@ -76,11 +76,12 @@ function autoAdaptDashes() {
 const curDash = () => dashes[Math.min(live.dashIdx, dashes.length - 1)];
 
 // ---- LEITURA CONTÍNUA ----
-const LIVE_SCREENS = ['painel', 'sensores'];
+const LIVE_SCREENS = ['painel', 'sensores', 'conducao'];
 
 function liveKeys() {
   if (ui.screen === 'painel') return [...new Set(curDash().widgets.map(w => w.key))];
   if (ui.screen === 'sensores') return PIDS.filter(pidAvailable).map(p => p.key);
+  if (ui.screen === 'conducao') return driveKeys();
   return [];
 }
 
@@ -204,7 +205,8 @@ function widgetHtml(w, idx) {
 }
 
 function updateLiveEl(el, key, v) {
-  if (el.dataset.wid) {
+  if (el.dataset.drive) updateDriveTile(el, key, v);
+  else if (el.dataset.wid) {
     const w = curDash().widgets.find(x => x.id === el.dataset.wid);
     if (w) renderWidgetBody(el, w, v);
   } else {

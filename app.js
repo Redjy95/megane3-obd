@@ -5,7 +5,7 @@
 
 const HISTORY_KEY = 'obd-megane3-historico';
 // Versão da app: tem de ser igual ao version.json e ao ?v= dos scripts no index.html
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
@@ -149,6 +149,7 @@ async function doReadDtcs() {
 }
 
 function clearDtcs() {
+  if ((live.values.speed ?? 0) > 0) { showToast('⚠️ Pare o carro antes de apagar avarias'); return; }
   if (!confirm('Apagar os códigos de avaria?\n\nFaça-o só depois de resolver o problema e com a ignição ligada e o motor desligado. A luz do motor apaga, mas volta se a avaria continuar. Os dados do momento da avaria também se perdem.')) return;
   return run(async () => {
     if (await obdClearDtcs()) {
