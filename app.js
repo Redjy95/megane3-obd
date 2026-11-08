@@ -4,6 +4,8 @@
 // ============================================================
 
 const HISTORY_KEY = 'obd-megane3-historico';
+// Versão da app: tem de ser igual ao version.json e ao ?v= dos scripts no index.html
+const APP_VERSION = 7;
 const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
@@ -316,4 +318,21 @@ window.addEventListener('DOMContentLoaded', () => {
   setStatus(ok ? 'Desligado' : 'Bluetooth indisponível neste browser', ok ? 'off' : 'error');
   renderHistory();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  $('app-version').textContent = APP_VERSION;
+  checkForUpdate();
 });
+
+// O browser pode guardar a página até 10 min. Se o servidor tiver uma versão mais nova,
+// recarrega com ?v=N para obrigar a ir buscar os ficheiros novos (o endereço guardado não muda).
+async function checkForUpdate() {
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    const { v } = await r.json();
+    if (!(v > APP_VERSION)) return;
+    const key = 'obd-megane3-tentou-v' + v;
+    if (sessionStorage.getItem(key)) return; // evita recarregar em ciclo
+    sessionStorage.setItem(key, '1');
+    if (obdIsConnected()) { showToast('Há uma versão nova da app. Desligue e volte a abrir para atualizar.', 5000); return; }
+    location.replace(location.pathname + '?v=' + v);
+  } catch {}
+}
