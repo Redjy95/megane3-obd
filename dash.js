@@ -9,12 +9,14 @@ const HIST_LEN = 90;
 const newId = () => Math.random().toString(36).slice(2, 9);
 const W = (key, type) => ({ id: newId(), key, type });
 
+// Painéis de origem com mais dados do que cabem: ao ligar ao carro,
+// os que ele não envia são retirados (ver adaptDashes).
 function presetDashes() {
   return [
-    { name: 'Motor', widgets: [W('rpm', 'gauge'), W('coolant', 'gauge'), W('battery', 'number'), W('speed', 'number'), W('load', 'number'), W('iat', 'number'), W('rpm', 'chart')] },
-    { name: 'Turbo', widgets: [W('boost', 'gauge'), W('maf', 'gauge'), W('boostCmd', 'number'), W('boostAct', 'number'), W('map', 'number'), W('iat', 'number'), W('boost', 'chart')] },
+    { name: 'Motor', widgets: [W('rpm', 'gauge'), W('coolant', 'gauge'), W('battery', 'number'), W('speed', 'number'), W('load', 'number'), W('iat', 'number'), W('pedal', 'number'), W('torque', 'number'), W('oil', 'number'), W('runTime', 'number'), W('rpm', 'chart')] },
+    { name: 'Turbo', widgets: [W('boost', 'gauge'), W('maf', 'gauge'), W('boostCmd', 'number'), W('boostAct', 'number'), W('map', 'number'), W('baro', 'number'), W('iat', 'number'), W('boost', 'chart'), W('maf', 'chart')] },
     { name: 'Elétrico', widgets: [W('battery', 'gauge'), W('ecuVolt', 'gauge'), W('rpm', 'number'), W('coolant', 'number'), W('battery', 'chart')] },
-    { name: 'Injeção e emissões', widgets: [W('rail', 'gauge'), W('fuelRate', 'gauge'), W('egrCmd', 'number'), W('egrErr', 'number'), W('dpfDp', 'number'), W('injTiming', 'number'), W('rail', 'chart')] }
+    { name: 'Injeção e emissões', widgets: [W('rail', 'gauge'), W('fuelRate', 'gauge'), W('railRel', 'number'), W('injTiming', 'number'), W('egrCmd', 'number'), W('egrErr', 'number'), W('dpfDp', 'number'), W('fuel', 'number'), W('rail', 'chart'), W('dpfDp', 'chart')] }
   ];
 }
 
@@ -28,8 +30,47 @@ function loadDashes() {
   return presetDashes();
 }
 
-function saveDashes() {
-  try { localStorage.setItem(DASH_KEY, JSON.stringify(dashes)); } catch {}
+// edited: o utilizador mexeu nos painéis (a partir daí não se ajustam sozinhos)
+function saveDashes(edited = true) {
+  try {
+    localStorage.setItem(DASH_KEY, JSON.stringify(dashes));
+    if (edited) localStorage.setItem(DASH_KEY + '-editados', '1');
+  } catch {}
+}
+
+function dashesEdited() {
+  try { return localStorage.getItem(DASH_KEY + '-editados') === '1'; } catch { return false; }
+}
+
+// Tira dos painéis os dados que este carro não envia; apaga painéis que fiquem vazios.
+// Devolve o nº de dados retirados (ou -1 se ainda não se sabe o que o carro envia).
+function adaptDashes(edited) {
+  if (!obdIsConnected() || !obd.supported.size) return -1;
+  let removed = 0;
+  for (const d of dashes) {
+    const before = d.widgets.length;
+    d.widgets = d.widgets.filter(w => pidAvailable(w.key));
+    removed += before - d.widgets.length;
+  }
+  const kept = dashes.filter(d => d.widgets.length);
+  if (kept.length) dashes = kept;
+  live.dashIdx = Math.min(live.dashIdx, dashes.length - 1);
+  saveDashes(edited);
+  return removed;
+}
+
+function adaptDashesButton() {
+  const n = adaptDashes(true);
+  if (n < 0) { showToast('⚠️ Ligue primeiro ao adaptador'); return; }
+  renderDash();
+  showToast(n ? `✅ Retirados ${n} dado(s) que este carro não envia` : '✅ Os painéis já só têm dados deste carro');
+}
+
+// Na ligação: ajusta sozinho os painéis de origem (se o utilizador não os mudou)
+function autoAdaptDashes() {
+  if (dashesEdited()) return;
+  const n = adaptDashes(false);
+  if (n > 0) showToast('✅ Painéis ajustados aos dados deste carro');
 }
 
 const curDash = () => dashes[Math.min(live.dashIdx, dashes.length - 1)];
@@ -237,7 +278,9 @@ function deleteDash() {
 function resetDashes() {
   if (!confirm('Repor os painéis de origem? Os seus painéis personalizados perdem-se.')) return;
   dashes = presetDashes();
-  saveDashes();
+  try { localStorage.removeItem(DASH_KEY + '-editados'); } catch {}
+  adaptDashes(false);
+  saveDashes(false);
   selectDash(0);
 }
 
@@ -354,7 +397,7 @@ async function finishRecord() {
   if (!rec || !rec.rows.length) { showToast('Gravação vazia'); return; }
   const keys = PIDS.map(p => p.key).filter(k => rec.rows.some(r => r[k] !== undefined));
   const num = v => v === undefined ? '' : String(Math.round(v * 1000) / 1000).replace('.', ',');
-  const head = ['Tempo (s)', ...keys.map(k => `${PID_BY_KEY[k].name} (${PID_BY_KEY[k].unit})`)].join(';');
+  const head = ['Tempo (s)', ...keys.map(k => `${PID_BY_KEY[k].name} (${k === 'runTime' ? 's' : PID_BY_KEY[k].unit})`)].join(';');
   const csv = [head, ...rec.rows.map(r => [num(r.t), ...keys.map(k => num(r[k]))].join(';'))].join('\n');
   const name = `megane-obd-${new Date(rec.start).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.csv`;
   await shareFile(name, csv, 'text/csv');

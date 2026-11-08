@@ -5,7 +5,7 @@
 
 const HISTORY_KEY = 'obd-megane3-historico';
 // Versão da app: tem de ser igual ao version.json e ao ?v= dos scripts no index.html
-const APP_VERSION = 7;
+const APP_VERSION = 8;
 const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
@@ -105,7 +105,8 @@ function setConnected(on) {
     ['Protocolo', escapeHtml(obd.protocol || '—')],
     ['PIDs suportados', obd.supported.size ? [...obd.supported].map(p => p.toString(16).toUpperCase().padStart(2, '0')).join(' ') : '—']
   ]);
-  // A lista de dados disponíveis depende do carro: volta a desenhar
+  // A lista de dados disponíveis depende do carro: ajusta e volta a desenhar
+  if (on) autoAdaptDashes();
   renderDash();
   renderSensors();
 }
