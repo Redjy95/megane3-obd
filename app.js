@@ -4,7 +4,7 @@
 // ============================================================
 
 const HISTORY_KEY = 'obd-megane3-historico';
-const ui = { busy: false, live: false, wantLive: false, screen: 'avarias', liveTimer: null, wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {} };
+const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
 
@@ -25,12 +25,11 @@ const fmt = (n, d = 0) => Number(n).toLocaleString('pt-PT', { minimumFractionDig
 // ---- NAVEGAÇÃO ----
 function navigateTo(screen) {
   ui.screen = screen;
-  if (screen !== 'motor') stopLive();
-  // O separador Motor atualiza sozinho enquanto estiver aberto
-  else if (obdIsConnected() && !ui.live) {
-    if (ui.busy) ui.wantLive = true;
-    else toggleLive();
-  }
+  if (screen === 'painel') renderDash();
+  if (screen === 'sensores') renderSensors();
+  // Painel e Sensores atualizam sozinhos enquanto estiverem abertos
+  if (LIVE_SCREENS.includes(screen)) startLive();
+  else ui.wantLive = false;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + screen));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.id === 'nav-' + screen));
   window.scrollTo(0, 0);
@@ -51,7 +50,7 @@ async function connect() {
     setConnected(false);
   } finally { setBusy(false); }
   if (obdIsConnected()) {
-    if (ui.screen === 'motor') ui.wantLive = true;
+    if (LIVE_SCREENS.includes(ui.screen)) ui.wantLive = true;
     autoReadAll();
   }
 }
@@ -61,20 +60,22 @@ function autoReadAll() {
   return run(async () => {
     showToast('🔄 A ler os dados do carro…');
     await doReadDtcs();
+    await doReadReadiness();
     await doReadCarInfo();
-    showLive(await obdReadLive());
+    const v = await readValues(['battery', 'coolant', 'rpm']);
+    Object.entries(v).forEach(([k, x]) => onLiveValue(k, x));
   });
 }
 
 function disconnect() {
-  stopLive();
+  ui.wantLive = false;
   obdDisconnect();
   setConnected(false);
   setStatus('Desligado', 'off');
 }
 
 obd.onDisconnect = () => {
-  stopLive();
+  ui.wantLive = false;
   setConnected(false);
   setStatus('⚠️ Ligação perdida. Volte a ligar.', 'error');
 };
@@ -102,6 +103,9 @@ function setConnected(on) {
     ['Protocolo', escapeHtml(obd.protocol || '—')],
     ['PIDs suportados', obd.supported.size ? [...obd.supported].map(p => p.toString(16).toUpperCase().padStart(2, '0')).join(' ') : '—']
   ]);
+  // A lista de dados disponíveis depende do carro: volta a desenhar
+  renderDash();
+  renderSensors();
 }
 
 function setBusy(on) {
@@ -118,10 +122,10 @@ async function run(fn) {
   try { await fn(); }
   catch (e) { showToast('⚠️ ' + (e.message || e)); }
   finally { setBusy(false); }
-  // Se abriu o separador Motor durante uma leitura, começa agora a atualizar
+  // Se abriu o Painel ou os Sensores durante uma leitura, começa agora a atualizar
   if (ui.wantLive) {
     ui.wantLive = false;
-    if (ui.screen === 'motor' && obdIsConnected()) toggleLive();
+    startLive();
   }
 }
 
@@ -223,68 +227,6 @@ function renderHistory() {
     : '<span class="text-muted">Ainda sem leituras.</span>';
 }
 
-// ---- MOTOR (TEMPO REAL) ----
-function readLiveOnce() {
-  return run(async () => { showLive(await obdReadLive()); });
-}
-
-async function toggleLive() {
-  if (ui.live) { stopLive(); return; }
-  if (!obdIsConnected()) { showToast('⚠️ Ligue primeiro ao adaptador'); return; }
-  if (ui.busy) return;
-  ui.live = true;
-  setBusy(true);
-  $('live-btn').disabled = false;
-  $('live-btn').textContent = '■ Parar';
-  $('live-btn').classList.replace('btn-primary', 'btn-danger');
-  try { ui.wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
-  try {
-    while (ui.live && obdIsConnected()) {
-      showLive(await obdReadLive());
-      await new Promise(r => setTimeout(r, 400));
-    }
-  } catch (e) { if (ui.live) showToast('⚠️ ' + (e.message || e)); }
-  finally {
-    ui.live = false;
-    try { ui.wakeLock?.release(); } catch {}
-    ui.wakeLock = null;
-    $('live-btn').textContent = '▶ Atualizar continuamente';
-    $('live-btn').classList.replace('btn-danger', 'btn-primary');
-    setBusy(false);
-  }
-}
-
-function stopLive() { ui.live = false; ui.wantLive = false; }
-
-function batteryState(v, rpm) {
-  if (rpm > 0) return v >= 13.5 ? ['a carregar', 'green'] : v >= 12.8 ? ['carga fraca', 'yellow'] : ['alternador?', 'red'];
-  return v >= 13.2 ? ['a carregar', 'green'] : v >= 12.4 ? ['boa', 'green'] : v >= 12.0 ? ['fraca', 'yellow'] : ['muito fraca', 'red'];
-}
-
-function showLive(d) {
-  ui.lastLive = d;
-  const tile = (id, val, unit, note = '', color = '') => {
-    const el = $(id);
-    if (!el) return;
-    el.querySelector('.gauge-val').innerHTML = val === undefined || val === null ? '—' : `${val}<span class="gauge-unit">${unit}</span>`;
-    el.querySelector('.gauge-note').textContent = note;
-    el.className = 'gauge' + (color ? ' ' + color : '') + (val === undefined || val === null ? ' off' : '');
-  };
-  if (d.battery !== undefined) { const [t, c] = batteryState(d.battery, d.rpm); tile('g-battery', fmt(d.battery, 1), ' V', t, c); }
-  else tile('g-battery', null, '', 'não disponível');
-  tile('g-coolant', d.coolant, ' °C', d.coolant === undefined ? 'não disponível' : d.coolant >= 105 ? 'alta!' : d.coolant >= 75 ? 'normal' : 'motor frio', d.coolant >= 105 ? 'red' : d.coolant >= 75 ? 'green' : 'blue');
-  tile('g-rpm', d.rpm !== undefined ? fmt(d.rpm) : undefined, ' rpm', d.rpm === 0 ? 'motor desligado' : '');
-  tile('g-speed', d.speed, ' km/h', d.speed > 0 ? 'pare o carro!' : '', d.speed > 0 ? 'red' : '');
-  const boost = d.map !== undefined ? (d.map - (d.baro ?? 101)) / 100 : undefined;
-  tile('g-boost', boost !== undefined ? fmt(boost, 2) : undefined, ' bar', boost !== undefined ? `absoluta ${fmt(d.map / 100, 2)} bar` : 'não disponível');
-  tile('g-load', d.load, ' %', d.load === undefined ? 'não disponível' : '');
-  tile('g-iat', d.iat, ' °C', d.iat === undefined ? 'não disponível' : '');
-  tile('g-maf', d.maf !== undefined ? fmt(d.maf, 1) : undefined, ' g/s', d.maf === undefined ? 'não disponível' : '');
-  tile('g-rail', d.rail !== undefined ? fmt(d.rail / 100) : undefined, ' bar', d.rail === undefined ? 'não disponível' : '');
-  tile('g-ecu', d.ecuVolt !== undefined ? fmt(d.ecuVolt, 1) : undefined, ' V', d.ecuVolt === undefined ? 'não disponível' : '');
-  $('live-time').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-PT');
-}
-
 // ---- CARRO ----
 function readCarInfo() { return run(doReadCarInfo); }
 
@@ -319,10 +261,13 @@ function buildReport() {
   }
   const f = ui.lastFreeze;
   if (f) L.push(`Dados da avaria ${f.dtc}: ${f.coolant ?? '—'} °C, ${f.rpm ?? '—'} rpm, ${f.speed ?? '—'} km/h, carga ${f.load ?? '—'} %`);
+  const r = ui.lastReadiness;
+  if (r) L.push('Testes da centralina por concluir: ' + (r.tests.filter(t => t.state !== 'ok').map(t => t.name).join(', ') || 'nenhum'));
   const v = ui.lastLive;
   if (v && Object.keys(v).length) {
     L.push('');
-    L.push(`Bateria: ${v.battery ?? '—'} V · Motor: ${v.coolant ?? '—'} °C · ${v.rpm ?? '—'} rpm`);
+    L.push('Últimos valores:');
+    for (const p of PIDS) if (v[p.key] !== undefined) L.push(`- ${p.name}: ${fmtValue(p.key, v[p.key])}`);
   }
   const i = ui.lastInfo;
   if (i.vin) L.push('VIN: ' + i.vin);

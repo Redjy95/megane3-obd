@@ -131,7 +131,9 @@ async function obdConnect(onStatus = () => {}) {
     chosen.n.addEventListener('characteristicvaluechanged', obdOnData);
 
     go('Iniciar o ELM327');
-  obd.elm = (await obdSend('ATZ', 4000)).replace(/[\r\n>]+/g, ' ').trim();
+  // Só a parte "ELM327 vX.X" (alguns clones juntam um "OK" de um comando anterior)
+  const atz = String(await obdSend('ATZ', 4000));
+  obd.elm = (atz.match(/ELM327[^\r\n>]*/i)?.[0] || atz.replace(/\bOK\b/gi, '')).replace(/[\r\n>]+/g, ' ').trim();
   for (const cmd of ['ATE0', 'ATL0', 'ATS0', 'ATH0', 'ATAT1', 'ATSP0']) await obdSend(cmd, 2000);
 
   // Primeiro pedido ao carro (pode demorar enquanto procura o protocolo).
