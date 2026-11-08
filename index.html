@@ -231,7 +231,7 @@
 
   <!-- ECRÃ: AVARIAS -->
   <div id="screen-avarias" class="screen active">
-    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>.</div>
+    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>. A app lê as avarias, os dados do carro e do motor sozinha.</div>
     <div id="unsupported" class="info-box" style="display:none">
       Este browser não permite Bluetooth.<br>
       <strong>iPhone:</strong> abra este site na app gratuita <strong>Bluefy</strong> (App Store).<br>
@@ -286,15 +286,15 @@
       <button class="btn btn-primary" id="live-btn" data-needs-obd onclick="toggleLive()">▶ Atualizar continuamente</button>
     </div>
     <div id="live-time" class="text-muted text-sm mt-8"></div>
-    <div class="section-note mt-8">Bateria com motor desligado: 12,4 V ou mais é bom. Com o motor a trabalhar deve estar entre 13,5 e 14,8 V. Os valores com “—” não são enviados por esta centralina.</div>
+    <div class="section-note mt-8">Com o adaptador ligado, os valores atualizam sozinhos enquanto este separador está aberto. Bateria com motor desligado: 12,4 V ou mais é bom. Com o motor a trabalhar deve estar entre 13,5 e 14,8 V. Os valores com “—” não são enviados por esta centralina.</div>
   </div>
 
   <!-- ECRÃ: CARRO -->
   <div id="screen-carro" class="screen">
     <div class="card">
       <div class="card-title">Carro</div>
-      <div id="info-car"><span class="text-muted text-sm">VIN, conta-km e distâncias. Muitos carros de 2010 não enviam o conta-km pelo OBD, mas vale a pena tentar.</span></div>
-      <button class="btn btn-primary btn-block mt-8" data-needs-obd onclick="readCarInfo()">Ler dados do carro</button>
+      <div id="info-car"><span class="text-muted text-sm">Lidos automaticamente ao ligar: VIN, conta-km e distâncias. Muitos carros de 2010 não enviam o conta-km pelo OBD, mas vale a pena tentar.</span></div>
+      <button class="btn btn-primary btn-block mt-8" data-needs-obd onclick="readCarInfo()">Ler outra vez</button>
     </div>
     <div class="card">
       <div class="card-title">Adaptador</div>

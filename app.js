@@ -4,7 +4,7 @@
 // ============================================================
 
 const HISTORY_KEY = 'obd-megane3-historico';
-const ui = { busy: false, live: false, liveTimer: null, wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {} };
+const ui = { busy: false, live: false, wantLive: false, screen: 'avarias', liveTimer: null, wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {} };
 
 const $ = id => document.getElementById(id);
 
@@ -24,7 +24,13 @@ const fmt = (n, d = 0) => Number(n).toLocaleString('pt-PT', { minimumFractionDig
 
 // ---- NAVEGAÇÃO ----
 function navigateTo(screen) {
+  ui.screen = screen;
   if (screen !== 'motor') stopLive();
+  // O separador Motor atualiza sozinho enquanto estiver aberto
+  else if (obdIsConnected() && !ui.live) {
+    if (ui.busy) ui.wantLive = true;
+    else toggleLive();
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + screen));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.id === 'nav-' + screen));
   window.scrollTo(0, 0);
@@ -38,13 +44,26 @@ async function connect() {
     const name = await obdConnect(t => setStatus(t, 'wait'));
     setStatus('Ligado a ' + name + (obd.protocol ? ' · ' + obd.protocol : ''), 'ok');
     setConnected(true);
-    showToast('✅ Ligado ao carro');
   } catch (e) {
     if (e && e.name === 'NotFoundError') setStatus('Nenhum adaptador escolhido', 'off');
     else setStatus('⚠️ ' + (e.message || e), 'error');
     obdDisconnect();
     setConnected(false);
   } finally { setBusy(false); }
+  if (obdIsConnected()) {
+    if (ui.screen === 'motor') ui.wantLive = true;
+    autoReadAll();
+  }
+}
+
+// Logo depois de ligar: lê avarias, dados do carro e motor, sem tocar em botões
+function autoReadAll() {
+  return run(async () => {
+    showToast('🔄 A ler os dados do carro…');
+    await doReadDtcs();
+    await doReadCarInfo();
+    showLive(await obdReadLive());
+  });
 }
 
 function disconnect() {
@@ -99,22 +118,27 @@ async function run(fn) {
   try { await fn(); }
   catch (e) { showToast('⚠️ ' + (e.message || e)); }
   finally { setBusy(false); }
+  // Se abriu o separador Motor durante uma leitura, começa agora a atualizar
+  if (ui.wantLive) {
+    ui.wantLive = false;
+    if (ui.screen === 'motor' && obdIsConnected()) toggleLive();
+  }
 }
 
 // ---- AVARIAS ----
-function readDtcs() {
-  return run(async () => {
-    const mil = await obdReadMilStatus();
-    const { stored, pending } = await obdReadDtcs();
-    ui.lastDtcs = { mil, stored, pending, date: new Date().toISOString() };
-    showMil(mil, stored.length);
-    showDtcList('dtc-stored', stored, 'Sem avarias confirmadas');
-    showDtcList('dtc-pending', pending, 'Sem avarias pendentes');
-    ui.lastFreeze = stored.length ? await obdReadFreezeFrame() : null;
-    showFreeze(ui.lastFreeze);
-    saveHistory({ date: ui.lastDtcs.date, stored, pending, mil: mil?.mil ?? null });
-    showToast(stored.length || pending.length ? `⚠️ ${stored.length + pending.length} código(s) encontrado(s)` : '✅ Sem avarias');
-  });
+function readDtcs() { return run(doReadDtcs); }
+
+async function doReadDtcs() {
+  const mil = await obdReadMilStatus();
+  const { stored, pending } = await obdReadDtcs();
+  ui.lastDtcs = { mil, stored, pending, date: new Date().toISOString() };
+  showMil(mil, stored.length);
+  showDtcList('dtc-stored', stored, 'Sem avarias confirmadas');
+  showDtcList('dtc-pending', pending, 'Sem avarias pendentes');
+  ui.lastFreeze = stored.length ? await obdReadFreezeFrame() : null;
+  showFreeze(ui.lastFreeze);
+  saveHistory({ date: ui.lastDtcs.date, stored, pending, mil: mil?.mil ?? null });
+  showToast(stored.length || pending.length ? `⚠️ ${stored.length + pending.length} código(s) encontrado(s)` : '✅ Sem avarias');
 }
 
 function clearDtcs() {
@@ -230,7 +254,7 @@ async function toggleLive() {
   }
 }
 
-function stopLive() { ui.live = false; }
+function stopLive() { ui.live = false; ui.wantLive = false; }
 
 function batteryState(v, rpm) {
   if (rpm > 0) return v >= 13.5 ? ['a carregar', 'green'] : v >= 12.8 ? ['carga fraca', 'yellow'] : ['alternador?', 'red'];
@@ -262,18 +286,18 @@ function showLive(d) {
 }
 
 // ---- CARRO ----
-function readCarInfo() {
-  return run(async () => {
-    const vin = await obdReadVin();
-    const dist = await obdReadDistances();
-    ui.lastInfo = { vin, ...dist };
-    $('info-car').innerHTML = infoRows([
-      ['VIN', vin ? `<span class="mono">${vin}</span>` : '<span class="text-muted">não enviado pelo carro</span>'],
-      ['Conta-km (PID A6)', dist.odometer !== undefined ? `<strong>${fmt(dist.odometer)} km</strong>` : '<span class="warn-text">não disponível</span>'],
-      ['Desde a última limpeza de avarias', dist.sinceClear !== undefined ? fmt(dist.sinceClear) + ' km' : '—'],
-      ['Com a luz do motor acesa', dist.withMil !== undefined ? fmt(dist.withMil) + ' km' : '—']
-    ]) + (dist.odometer === undefined ? '<div class="text-muted text-sm mt-8">O Mégane III de 2010 normalmente não envia o conta-km pelo OBD standard. Veja-o no quadrante.</div>' : '');
-  });
+function readCarInfo() { return run(doReadCarInfo); }
+
+async function doReadCarInfo() {
+  const vin = await obdReadVin();
+  const dist = await obdReadDistances();
+  ui.lastInfo = { vin, ...dist };
+  $('info-car').innerHTML = infoRows([
+    ['VIN', vin ? `<span class="mono">${vin}</span>` : '<span class="text-muted">não enviado pelo carro</span>'],
+    ['Conta-km (PID A6)', dist.odometer !== undefined ? `<strong>${fmt(dist.odometer)} km</strong>` : '<span class="warn-text">não disponível</span>'],
+    ['Desde a última limpeza de avarias', dist.sinceClear !== undefined ? fmt(dist.sinceClear) + ' km' : '—'],
+    ['Com a luz do motor acesa', dist.withMil !== undefined ? fmt(dist.withMil) + ' km' : '—']
+  ]) + (dist.odometer === undefined ? '<div class="text-muted text-sm mt-8">O Mégane III de 2010 normalmente não envia o conta-km pelo OBD standard. Veja-o no quadrante.</div>' : '');
 }
 
 function infoRows(rows) {
