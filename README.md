@@ -33,4 +33,5 @@ Lê só a centralina do motor (OBD standard). Airbag, ABS e outros módulos prec
 - `dash.js` — painéis, sensores e leitura contínua
 - `health.js` — verificação rápida e testes guiados
 - `app.js` — interface
-- `sw.js` — funciona sem rede (mudar a versão da cache e o `?v=` dos scripts no `index.html` sempre que os ficheiros mudarem)
+- `version.json` — número da versão publicada
+- `sw.js` — funciona sem rede (a cada versão nova, subir o número em `version.json`, `APP_VERSION` no `app.js`, `?v=` no `index.html` e `CACHE` no `sw.js`; a app compara com o `version.json` e atualiza-se sozinha)
