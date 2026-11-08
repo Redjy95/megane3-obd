@@ -111,7 +111,7 @@ function evaluateHealth(v) {
     if (v.rpm >= 700 && v.rpm <= 950) engine.push({ s: 'ok', t: `Ralenti normal: ${F('rpm', v.rpm)}` });
     else engine.push({ s: 'warn', t: `Ralenti fora do habitual: ${F('rpm', v.rpm)}`, d: 'Com o motor quente costuma andar perto das 800 rpm.' });
   }
-  if ((v.speed ?? 0) > 0) engine.push({ s: 'bad', t: 'O carro está em movimento', d: 'Use esta app só com o carro parado.' });
+  if ((v.speed ?? 0) > 0) engine.push({ s: 'warn', t: 'O carro está em movimento', d: 'Esta verificação é feita para o carro parado; em andamento use o Modo condução no Painel.' });
 
   // Emissões
   if (running && has('egrErr')) {

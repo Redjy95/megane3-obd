@@ -275,6 +275,19 @@
     .mt-12 { margin-top: 12px; }
     details.card > summary { list-style: none; }
     details.card > summary::-webkit-details-marker { display: none; }
+    /* ---- MODO CONDUÇÃO ---- */
+    .drive { display: none; position: fixed; inset: 0; z-index: 150; background: #000; padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); flex-direction: column; gap: 12px; }
+    .drive.open { display: flex; }
+    .drive-top { display: flex; justify-content: space-between; align-items: center; }
+    .drive-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 10px; min-height: 0; }
+    .drive-tile { background: #0b1020; border: 2px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
+    .drive-tile.alert { border-color: var(--accent-red); background: rgba(239,68,68,0.15); }
+    .drive-lbl { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; text-align: center; padding: 0 6px; }
+    .drive-val { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.6rem, 14vw, 5rem); line-height: 1.1; color: #fff; }
+    .drive-tile.alert .drive-val { color: var(--accent-red); }
+    .drive-unit { font-size: 1rem; color: var(--text-secondary); }
+    .drive-exit { padding: 14px; }
+    @media (orientation: landscape) { .drive-grid { grid-template-columns: repeat(4, 1fr); } }
     /* ---- TOAST ---- */
     .toast {
       position: fixed; top: calc(120px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
@@ -313,7 +326,7 @@
 
   <!-- ECRÃ: AVARIAS -->
   <div id="screen-avarias" class="screen active">
-    <div class="warning-box">⚠️ Usar só com o carro parado. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>. A app lê as avarias, os testes da centralina e os dados do carro sozinha.</div>
+    <div class="warning-box">⚠️ Não mexa no telemóvel enquanto conduz. Ligue a ignição (o motor pode estar desligado) e depois toque em <strong>Ligar</strong>. Para usar em andamento, prepare o <strong>Modo condução</strong> (separador Painel) antes de arrancar. A app lê as avarias, os testes da centralina e os dados do carro sozinha.</div>
     <div id="unsupported" class="info-box" style="display:none">
       Este browser não permite Bluetooth.<br>
       <strong>iPhone:</strong> abra este site na app gratuita <strong>Bluefy</strong> (App Store).<br>
@@ -365,7 +378,10 @@
       <div class="text-muted text-sm" style="width:100%">Toque em ⚙ num dado para mudar o aspeto, os limites de alerta ou a ordem.</div>
     </div>
     <div class="dash-grid" id="dash-grid"></div>
-    <button class="btn btn-outline btn-block mt-12" id="rec-btn" onclick="toggleRecord()">● Gravar</button>
+    <div class="btn-row mt-12">
+      <button class="btn btn-outline" id="rec-btn" onclick="toggleRecord()">● Gravar</button>
+      <button class="btn btn-primary" onclick="openDriveSetup()">🚗 Modo condução</button>
+    </div>
     <div class="section-note mt-8">A gravação guarda os valores deste painel num ficheiro CSV (abre no Excel ou Numbers). Os dados que o carro não envia aparecem como “não disponível”.</div>
   </div>
 
@@ -472,6 +488,7 @@
   </nav>
 </div>
 
+<div class="drive" id="drive"></div>
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
@@ -481,11 +498,13 @@
   </div>
 </div>
 
-<script src="dtc.js?v=8"></script>
-<script src="obd.js?v=8"></script>
-<script src="pids.js?v=8"></script>
-<script src="dash.js?v=8"></script>
-<script src="health.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="dtc.js?v=10"></script>
+<script src="obd.js?v=10"></script>
+<script src="pids.js?v=10"></script>
+<script src="dash.js?v=10"></script>
+<script src="health.js?v=10"></script>
+<script src="wake.js?v=10"></script>
+<script src="drive.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
