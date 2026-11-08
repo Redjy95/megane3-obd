@@ -46,7 +46,7 @@ async function connect() {
     setConnected(true);
   } catch (e) {
     if (e && e.name === 'NotFoundError') setStatus('Nenhum adaptador escolhido', 'off');
-    else setStatus('⚠️ ' + (e.message || e), 'error');
+    else { setStatus('⚠️ ' + (e.message || e), 'error'); showToast('Veja o separador Registo e copie o texto', 5000); }
     obdDisconnect();
     setConnected(false);
   } finally { setBusy(false); }
