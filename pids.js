@@ -15,6 +15,33 @@ const CATS = {
 
 const u16 = b => b[0] * 256 + b[1];
 
+// ---- Referências guardadas neste telemóvel ----
+// Pressão atmosférica: este carro não envia o PID 33, mas com o motor desligado
+// a pressão no coletor (PID 0B) é igual à atmosférica. Guarda-se essa medição.
+// Ajuste da tensão: diferença entre o multímetro e o adaptador (ATRV).
+const BARO_KEY = 'obd-megane3-baro', VOLT_KEY = 'obd-megane3-ajuste-tensao';
+const loadNum = k => { try { const v = parseFloat(localStorage.getItem(k)); return isNaN(v) ? null : v; } catch { return null; } };
+let baroEst = loadNum(BARO_KEY);
+let voltAdj = loadNum(VOLT_KEY) ?? 0;
+
+// Pressão atmosférica a usar: a do carro, a medida com o motor desligado, ou 1,013 bar
+function baroRef(v) { return v?.baro ?? baroEst ?? 1.013; }
+
+function noteEngineOffMap(map) {
+  if (!(map >= 0.7 && map <= 1.1)) return; // fora disto não é pressão atmosférica plausível
+  baroEst = Math.round(map * 100) / 100;
+  try { localStorage.setItem(BARO_KEY, baroEst); } catch {}
+}
+
+// Tensão do adaptador (ATRV) com o ajuste da calibração
+function atrvRaw(r) { const v = parseFloat(String(r).replace(/[^0-9.]/g, '')); return isNaN(v) ? null : v; }
+function atrvVolts(r) { const v = atrvRaw(r); return v === null ? null : Math.round((v + voltAdj) * 100) / 100; }
+
+function setVoltAdj(a) {
+  voltAdj = Math.round(a * 100) / 100;
+  try { voltAdj ? localStorage.setItem(VOLT_KEY, voltAdj) : localStorage.removeItem(VOLT_KEY); } catch {}
+}
+
 // runTime: o valor é em segundos, mostrado como min:ss
 // pid: PID do modo 01 ('RV' = tensão medida pelo adaptador)
 // n: nº de bytes; f: fórmula; dec: casas decimais; min/max: escala dos mostradores
@@ -44,7 +71,7 @@ const PIDS = [
   { key: 'ambient', short: 'Temp. exterior', pid: 0x46, f: b => b[0] - 40, name: 'Temperatura exterior', unit: '°C', cat: 'temp', dec: 0, min: -20, max: 50 },
 
   // Turbo e admissão
-  { key: 'boost', derived: ['map'], calc: v => v.map - (v.baro ?? 1.013), name: 'Pressão do turbo', unit: 'bar', cat: 'turbo', dec: 2, min: -0.2, max: 1.6, warn: { hi: 1.5 } },
+  { key: 'boost', derived: ['map'], calc: v => v.map - baroRef(v), name: 'Pressão do turbo', unit: 'bar', cat: 'turbo', dec: 2, min: -0.2, max: 1.6, warn: { hi: 1.5 } },
   { key: 'map', short: 'Pressão coletor', pid: 0x0B, f: b => b[0] / 100, name: 'Pressão no coletor (absoluta)', unit: 'bar', cat: 'turbo', dec: 2, min: 0, max: 2.6 },
   { key: 'baro', short: 'Pressão atmosf.', pid: 0x33, f: b => b[0] / 100, name: 'Pressão atmosférica', unit: 'bar', cat: 'turbo', dec: 2, min: 0.8, max: 1.1 },
   { key: 'boostCmd', short: 'Turbo pedido', pid: 0x70, n: 5, f: b => (b[0] & 1) ? u16(b.slice(1)) * 0.03125 / 100 : null, name: 'Turbo: pressão pedida (absoluta)', unit: 'bar', cat: 'turbo', dec: 2, min: 0, max: 2.6 },
@@ -110,9 +137,8 @@ async function readValues(keys, onValue = () => {}, shouldStop = () => false) {
     if (!obdIsConnected() || shouldStop()) break;
     let bytes = null;
     if (pid === 'RV') {
-      const r = await obdSend('ATRV', 2000).catch(() => '');
-      const v = parseFloat(String(r).replace(/[^0-9.]/g, ''));
-      if (!isNaN(v)) { out.battery = v; onValue('battery', v); }
+      const v = atrvVolts(await obdSend('ATRV', 2000).catch(() => ''));
+      if (v !== null) { out.battery = v; onValue('battery', v); }
       continue;
     }
     bytes = await obdPid(pid).catch(() => null);
@@ -124,6 +150,9 @@ async function readValues(keys, onValue = () => {}, shouldStop = () => false) {
       onValue(p.key, v);
     }
   }
+  // Motor desligado (ignição ligada): guarda a pressão atmosférica
+  const rpmNow = out.rpm ?? (typeof live !== 'undefined' ? live.values.rpm : undefined);
+  if (out.map !== undefined && out.baro === undefined && rpmNow !== undefined && rpmNow < 100) noteEngineOffMap(out.map);
   // dados calculados
   for (const k of keys) {
     const p = PID_BY_KEY[k];

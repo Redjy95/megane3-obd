@@ -329,8 +329,8 @@ function openWidgetModal(idx) {
   openModal(p.name, `
     <label class="form-label">Aspeto</label>${typeSelect('w-type', w.type)}
     <div class="form-row mt-12">
-      <div><label class="form-label">Alerta abaixo de</label><input id="w-lo" type="number" step="any" inputmode="decimal" class="form-input" value="${lo ?? ''}" placeholder="sem alerta"></div>
-      <div><label class="form-label">Alerta acima de</label><input id="w-hi" type="number" step="any" inputmode="decimal" class="form-input" value="${hi ?? ''}" placeholder="sem alerta"></div>
+      <div><label class="form-label">Alerta abaixo de</label><input id="w-lo" type="text" inputmode="decimal" autocomplete="off" class="form-input" value="${lo ?? ''}" placeholder="sem alerta"></div>
+      <div><label class="form-label">Alerta acima de</label><input id="w-hi" type="text" inputmode="decimal" autocomplete="off" class="form-input" value="${hi ?? ''}" placeholder="sem alerta"></div>
     </div>
     <div class="text-muted text-sm mt-8">Unidade: ${escapeHtml(p.unit || '—')}. Fora destes limites o dado fica vermelho.</div>
     <div class="btn-row mt-12">
@@ -346,7 +346,7 @@ function openWidgetModal(idx) {
 function saveWidget(idx) {
   const w = curDash().widgets[idx];
   w.type = $('w-type').value;
-  const num = id => { const v = $(id).value.trim().replace(',', '.'); return v === '' ? null : Number(v); };
+  const num = id => { const v = $(id).value.trim().replace(',', '.'); const n = Number(v); return v === '' || isNaN(n) ? null : n; };
   w.warn = { lo: num('w-lo'), hi: num('w-hi') };
   saveDashes(); closeModal(); renderDash();
 }

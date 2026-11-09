@@ -113,7 +113,7 @@ function analyzeTrip(rows) {
   out.push({ g: 'Viagem', s: 'info', t: `${fmtValue('runTime', dur)} · ${fmt(dist, 1)} km` + (has('speed') ? ` · máx ${fmt(Math.max(...vals('speed')))} km/h` : '') + (has('rpm') ? ` · máx ${fmt(Math.max(...vals('rpm')))} rpm` : '') });
 
   // Turbo em carga
-  const boostOf = r => r.map !== undefined ? r.map - (r.baro ?? 1.013) : undefined;
+  const boostOf = r => r.map !== undefined ? r.map - baroRef(r) : undefined;
   const loaded = rows.filter(r => ((r.load ?? 0) >= 80 || (r.pedal ?? 0) >= 80) && (r.rpm ?? 0) >= 1800);
   if (has('map')) {
     const allMax = Math.max(...rows.map(boostOf).filter(v => v !== undefined));
@@ -161,7 +161,7 @@ function showTripAnalysis(rec) {
     lastG = i.g;
     return head + `<div class="check-row ${i.s}"><span class="check-dot">${STATE_ICON[i.s]}</span><div class="check-text"><div>${i.t}</div>${i.d ? `<div class="text-muted text-sm">${i.d}</div>` : ''}</div></div>`;
   }).join('');
-  const boost = rec.rows.map(r => r.map !== undefined ? r.map - (r.baro ?? 1.013) : null).filter(v => v !== null);
+  const boost = rec.rows.map(r => r.map !== undefined ? r.map - baroRef(r) : null).filter(v => v !== null);
   openModal('Análise da viagem', html +
     (boost.length > 1 ? `<div class="check-group">Pressão do turbo ao longo da viagem</div>${sparkSvg(boost.length > 400 ? boost.filter((_, i) => i % Math.ceil(boost.length / 400) === 0) : boost)}` : '') +
     `<div class="text-muted text-sm mt-8">Referências aproximadas para este tipo de motor, não valores de fábrica.</div>

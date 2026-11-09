@@ -84,12 +84,15 @@ function evaluateHealth(v) {
 
   // Turbo e admissão
   if (has('map')) {
-    const baro = v.baro ?? 1.013;
+    const baro = baroRef(v);
     const diff = v.map - baro;
-    if (!running) {
-      const tol = has('baro') ? 0.05 : 0.1;
-      if (Math.abs(diff) <= tol) turbo.push({ s: 'ok', t: 'Sensor de pressão do turbo coerente (motor desligado)', d: `Mede ${F('map', v.map)}, igual à pressão atmosférica.` });
+    if (!running && has('baro')) {
+      if (Math.abs(diff) <= 0.05) turbo.push({ s: 'ok', t: 'Sensor de pressão do turbo coerente (motor desligado)', d: `Mede ${F('map', v.map)}, igual à pressão atmosférica.` });
       else turbo.push({ s: 'warn', t: `Sensor de pressão do turbo com desvio de ${fmt(Math.abs(diff), 2)} bar (motor desligado)`, d: 'Com o motor parado devia medir a pressão atmosférica. Possível sensor (MAP) sujo ou avariado.' });
+    } else if (!running) {
+      // sem PID 33: só dá para ver se o valor é uma pressão atmosférica plausível (do mar até ~1500 m)
+      if (v.map >= 0.83 && v.map <= 1.08) turbo.push({ s: 'ok', t: `Sensor de pressão do turbo plausível (motor desligado): ${F('map', v.map)}`, d: 'Com o motor parado mede a pressão atmosférica. A app guarda este valor para calcular a pressão do turbo.' });
+      else turbo.push({ s: 'warn', t: `Sensor de pressão do turbo marca ${F('map', v.map)} com o motor desligado`, d: 'Devia marcar a pressão atmosférica (cerca de 1 bar). Possível sensor (MAP) sujo ou avariado.' });
     } else if (idle) {
       if (diff <= 0.2) turbo.push({ s: 'ok', t: `Pressão em ralenti normal: ${fmt(diff, 2)} bar` });
       else turbo.push({ s: 'warn', t: `Pressão alta em ralenti: ${fmt(diff, 2)} bar`, d: 'Em ralenti o turbo quase não devia dar pressão.' });
@@ -161,9 +164,8 @@ function testResult(title, rows, chart) {
 async function sampleVoltage(secs, onSample) {
   const out = [], t0 = Date.now();
   while (Date.now() - t0 < secs * 1000 && obdIsConnected()) {
-    const r = await obdSend('ATRV', 1500).catch(() => '');
-    const v = parseFloat(String(r).replace(/[^0-9.]/g, ''));
-    if (!isNaN(v)) { out.push(v); onSample?.(v, (Date.now() - t0) / 1000); }
+    const v = atrvVolts(await obdSend('ATRV', 1500).catch(() => ''));
+    if (v !== null) { out.push(v); onSample?.(v, (Date.now() - t0) / 1000); }
   }
   return out;
 }
@@ -226,7 +228,7 @@ function testTurbo() {
       samples.push(v);
       const t = (Date.now() - t0) / 1000;
       const msg = t < 4 ? 'Em ponto morto, mantenha o motor em ralenti…' : '👉 Acelere e mantenha perto das 2500 rpm (ponto morto, travão de mão puxado)';
-      testProgress(title, msg, dur - t, t / dur, `${fmtValue('rpm', v.rpm)} · turbo ${v.map !== undefined ? fmt(v.map - (v.baro ?? 1.013), 2) + ' bar' : '—'} · ar ${fmtValue('maf', v.maf)}`);
+      testProgress(title, msg, dur - t, t / dur, `${fmtValue('rpm', v.rpm)} · turbo ${v.map !== undefined ? fmt(v.map - baroRef(v), 2) + ' bar' : '—'} · ar ${fmtValue('maf', v.maf)}`);
     }
     const idleS = samples.filter(s => (s.rpm ?? 0) < 1100);
     const highS = samples.filter(s => (s.rpm ?? 0) >= 2000);
@@ -239,7 +241,7 @@ function testTurbo() {
         ? { s: 'ok', t: `O caudal de ar aumenta com as rotações (${fmt(mafIdle, 1)} → ${fmt(mafHigh, 1)} g/s)`, d: 'Debitómetro e admissão a responder.' }
         : { s: 'warn', t: `O caudal de ar aumenta pouco (${fmt(mafIdle, 1)} → ${fmt(mafHigh, 1)} g/s)`, d: 'Possível debitómetro sujo/avariado ou filtro de ar entupido.' });
     }
-    const boosts = highS.map(s => s.map !== undefined ? s.map - (s.baro ?? 1.013) : undefined).filter(x => x !== undefined);
+    const boosts = highS.map(s => s.map !== undefined ? s.map - baroRef(s) : undefined).filter(x => x !== undefined);
     if (boosts.length) rows.push({ s: 'info', t: `Pressão máxima do turbo: ${fmt(Math.max(...boosts), 2)} bar`, d: 'Sem carga é normal o turbo subir pouco (cerca de 0,1 a 0,4 bar). Para avaliar a pressão máxima é preciso um registo em andamento, com outra pessoa a conduzir.' });
     const devs = highS.filter(s => s.boostCmd !== undefined && s.boostAct !== undefined).map(s => s.boostAct - s.boostCmd);
     if (devs.length) {
@@ -248,6 +250,6 @@ function testTurbo() {
         ? { s: 'ok', t: 'O turbo seguiu a pressão pedida pela centralina' }
         : { s: 'warn', t: `Diferença entre pedido e medido: ${fmt(worst, 2)} bar`, d: worst < 0 ? 'Abaixo do pedido: possível fuga de ar ou geometria variável presa.' : 'Acima do pedido: possível geometria variável presa.' });
     }
-    testResult(title, rows, sparkSvg(samples.map(s => s.map !== undefined ? s.map - (s.baro ?? 1.013) : 0)));
+    testResult(title, rows, sparkSvg(samples.map(s => s.map !== undefined ? s.map - baroRef(s) : 0)));
   });
 }
