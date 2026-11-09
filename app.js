@@ -5,7 +5,7 @@
 
 const HISTORY_KEY = 'obd-megane3-historico';
 // Versão da app: tem de ser igual ao version.json e ao ?v= dos scripts no index.html
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 const ui = { busy: false, wantLive: false, screen: 'avarias', wakeLock: null, lastLive: {}, lastDtcs: null, lastFreeze: null, lastInfo: {}, lastReadiness: null };
 
 const $ = id => document.getElementById(id);
@@ -64,7 +64,8 @@ function autoReadAll() {
     await doReadDtcs();
     await doReadReadiness();
     await doReadCarInfo();
-    const v = await readValues(['battery', 'coolant', 'rpm']);
+    const v = await readValues(['battery', 'coolant', 'rpm', 'map']);
+    renderAdapterInfo();
     Object.entries(v).forEach(([k, x]) => onLiveValue(k, x));
   });
 }
@@ -99,12 +100,7 @@ function setConnected(on) {
   $('conn-btn').classList.toggle('btn-outline', on);
   $('conn-btn').classList.toggle('btn-primary', !on);
   document.querySelectorAll('[data-needs-obd]').forEach(b => { b.disabled = !on || ui.busy; });
-  if (on) $('info-adapter').innerHTML = infoRows([
-    ['Adaptador', escapeHtml(obd.device?.name || '—')],
-    ['Versão ELM', escapeHtml(obd.elm || '—')],
-    ['Protocolo', escapeHtml(obd.protocol || '—')],
-    ['PIDs suportados', obd.supported.size ? [...obd.supported].map(p => p.toString(16).toUpperCase().padStart(2, '0')).join(' ') : '—']
-  ]);
+  if (on) renderAdapterInfo();
   // A lista de dados disponíveis depende do carro: ajusta e volta a desenhar
   if (on) autoAdaptDashes();
   renderDash();
@@ -229,6 +225,46 @@ function renderHistory() {
         return `<div class="hist-row"><div class="hist-when">${when}</div><div class="hist-what">${what}</div></div>`;
       }).join('')
     : '<span class="text-muted">Ainda sem leituras.</span>';
+}
+
+// ---- ADAPTADOR E CALIBRAÇÃO ----
+function renderAdapterInfo() {
+  $('info-adapter').innerHTML = infoRows([
+    ['Adaptador', escapeHtml(obd.device?.name || '—')],
+    ['Versão ELM', escapeHtml(obd.elm || '—')],
+    ['Protocolo', escapeHtml(obd.protocol || '—')],
+    ['PIDs suportados', obd.supported.size ? [...obd.supported].map(p => p.toString(16).toUpperCase().padStart(2, '0')).join(' ') : '—'],
+    ['Pressão atmosférica', baroEst ? `${fmt(baroEst, 2)} bar <span class="text-muted">(medida com o motor desligado)</span>` : '<span class="text-muted">por medir: ligue com o motor desligado</span>'],
+    ['Ajuste da tensão', voltAdj ? `${voltAdj > 0 ? '+' : ''}${fmt(voltAdj, 2)} V` : '<span class="text-muted">sem ajuste</span>']
+  ]);
+}
+
+// Calibra a tensão do adaptador com o valor de um multímetro
+function openVoltCal() {
+  return run(async () => {
+    const raw = atrvRaw(await obdSend('ATRV', 2000));
+    if (raw === null) { showToast('⚠️ O adaptador não respondeu'); return; }
+    openModal('Calibrar tensão', `
+      <div class="text-sm" style="line-height:1.5">Meça a tensão nos terminais da bateria com um multímetro, <strong>ao mesmo tempo</strong> que lê aqui o adaptador (motor desligado ou a trabalhar, tanto faz).</div>
+      <div class="info-row mt-12"><span class="text-muted">O adaptador mede agora</span><span class="info-val"><strong>${fmt(raw, 2)} V</strong></span></div>
+      <label class="form-label mt-12">Valor do multímetro (V)</label>
+      <input id="volt-real" class="form-input" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 14,2">
+      <div class="btn-row mt-12">
+        <button class="btn btn-outline" onclick="setVoltAdj(0);closeModal();renderAdapterInfo();showToast('Ajuste removido')">Sem ajuste</button>
+        <button class="btn btn-primary" onclick="saveVoltCal(${raw})">Guardar</button>
+      </div>`);
+  });
+}
+
+function saveVoltCal(raw) {
+  const real = parseFloat($('volt-real').value.replace(',', '.'));
+  if (isNaN(real) || real < 9 || real > 17) { showToast('⚠️ Valor inválido'); return; }
+  const adj = real - raw;
+  if (Math.abs(adj) > 2) { showToast('⚠️ Diferença de mais de 2 V: confirme a medição'); return; }
+  setVoltAdj(adj);
+  closeModal();
+  renderAdapterInfo();
+  showToast(`✅ Tensão ajustada em ${adj > 0 ? '+' : ''}${fmt(adj, 2)} V`);
 }
 
 // ---- CARRO ----

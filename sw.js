@@ -1,8 +1,8 @@
 // OBD Mégane 3 — Service Worker (funciona sem rede)
 // Mudar a versão sempre que os ficheiros da app mudarem (aqui, no ?v= do index.html,
 // no APP_VERSION do app.js e no version.json).
-const CACHE = 'obd-megane3-v10';
-const ASSETS = ['./', './index.html', './app.js?v=10', './obd.js?v=10', './dtc.js?v=10', './pids.js?v=10', './dash.js?v=10', './health.js?v=10', './drive.js?v=10', './wake.js?v=10', './keepawake.mp4?v=10', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+const CACHE = 'obd-megane3-v11';
+const ASSETS = ['./', './index.html', './app.js?v=11', './obd.js?v=11', './dtc.js?v=11', './pids.js?v=11', './dash.js?v=11', './health.js?v=11', './drive.js?v=11', './wake.js?v=11', './keepawake.mp4?v=11', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))));
